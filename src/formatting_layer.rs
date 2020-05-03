@@ -241,15 +241,14 @@ where
 
     fn on_enter(&self, id: &Id, ctx: Context<'_, S>) {
         let span = ctx.span(id).expect("Span not found, this is a bug");
-        if let Ok(serialized) = self.serialize_span(&span, Type::EnterSpan)  {
+        if let Ok(serialized) = self.serialize_span(&span, Type::EnterSpan) {
             let _ = self.emit(serialized);
         }
-
     }
 
     fn on_exit(&self, id: &Id, ctx: Context<'_, S>) {
         let span = ctx.span(id).expect("Span not found, this is a bug");
-        if let Ok(serialized) = self.serialize_span(&span, Type::ExitSpan)  {
+        if let Ok(serialized) = self.serialize_span(&span, Type::ExitSpan) {
             let _ = self.emit(serialized);
         }
     }
