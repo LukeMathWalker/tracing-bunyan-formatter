@@ -13,7 +13,7 @@ readme = "README.md"
 description = "A Bunyan formatter for the tracing crate"
 
 keywords = ["logging", "metrics", "tracing", "bunyan", "subscriber"]
-categories = ["debugging", "profiling"]
+categories = ["development-tools::profiling", "development-tools::debugging"]
 
 [lib]
 path = "src/lib.rs"
