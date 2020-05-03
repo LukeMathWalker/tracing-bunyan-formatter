@@ -105,9 +105,9 @@ We could have pursued this compositional approach to add `elapsed_milliseconds` 
 instead of baking it in [`JsonStorage`] itself.
 
 [`Layer`]: https://docs.rs/tracing-subscriber/0.2.5/tracing_subscriber/layer/trait.Layer.html
-[`JsonStorageLayer`]: struct.JsonStorageLayer.html
-[`JsonStorage`]: struct.JsonStorage.html
-[`BunyanFormattingLayer`]: struct.BunyanFormattingLayer.html
+[`JsonStorageLayer`]: https://docs.rs/tracing-bunyan-formatter/0.1.2/tracing-bunyan-formatter/struct.JsonStorageLayer.html
+[`JsonStorage`]: https://docs.rs/tracing-bunyan-formatter/0.1.2/tracing-bunyan-formatter/struct.JsonStorage.html
+[`BunyanFormattingLayer`]: https://docs.rs/tracing-bunyan-formatter/0.1.2/tracing-bunyan-formatter/struct.BunyanFormattingLayer.html
 [`Span`]: https://docs.rs/tracing/0.1.13/tracing/struct.Span.html
 [`Subscriber`]: https://docs.rs/tracing-core/0.1.10/tracing_core/subscriber/trait.Subscriber.html
 [`tracing`]: https://docs.rs/tracing
