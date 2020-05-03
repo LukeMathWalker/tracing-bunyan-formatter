@@ -89,16 +89,14 @@ impl<W: MakeWriter + 'static> BunyanFormattingLayer<W> {
         Ok(())
     }
 
+    /// Given a span, it serialised it to a in-memory buffer (vector of bytes).
     fn serialize_span<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>>(
         &self,
         span: &SpanRef<S>,
-        mut writer: W::Writer,
         ty: Type,
-    ) -> Result<(), std::io::Error> {
-        // Add new-line
-        writer.write_all(b"\n")?;
-
-        let mut serializer = serde_json::Serializer::new(writer);
+    ) -> Result<Vec<u8>, std::io::Error> {
+        let mut buffer = Vec::new();
+        let mut serializer = serde_json::Serializer::new(&mut buffer);
         let mut map_serializer = serializer.serialize_map(None)?;
         let message = format_span_context(&span, ty);
         self.serialize_bunyan_core_fields(&mut map_serializer, &message, span.metadata().level())?;
@@ -110,7 +108,20 @@ impl<W: MakeWriter + 'static> BunyanFormattingLayer<W> {
             }
         }
         map_serializer.end()?;
-        Ok(())
+        Ok(buffer)
+    }
+
+    /// Given an in-memory buffer holding a complete serialised record, flush it to the writer
+    /// returned by self.make_writer.
+    ///
+    /// We add a trailing new-line at the end of the serialised record.
+    ///
+    /// If we write directly to the writer returned by self.make_writer in more than one go
+    /// we can end up with broken/incoherent bits and pieces of those records when
+    /// running multi-threaded/concurrent programs.
+    fn emit(&self, mut buffer: Vec<u8>) -> Result<(), std::io::Error> {
+        buffer.write_all(b"\n")?;
+        self.make_writer.make_writer().write_all(&buffer)
     }
 }
 
@@ -179,7 +190,6 @@ where
     W: MakeWriter + 'static,
 {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
-        let mut writer = self.make_writer.make_writer();
         // Events do not necessarily happen in the context of a span, hence lookup_current
         // returns an `Option<SpanRef<_>>` instead of a `SpanRef<_>`.
         let current_span = ctx.lookup_current();
@@ -189,10 +199,9 @@ where
 
         // Opting for a closure to use the ? operator and get more linear code.
         let format = || {
-            // Add new-line
-            writer.write_all(b"\n")?;
+            let mut buffer = Vec::new();
 
-            let mut serializer = serde_json::Serializer::new(writer);
+            let mut serializer = serde_json::Serializer::new(&mut buffer);
             let mut map_serializer = serializer.serialize_map(None)?;
 
             let message = format_event_message(&current_span, event, &event_visitor);
@@ -221,19 +230,27 @@ where
                 }
             }
             map_serializer.end()?;
-            Ok(())
+            Ok(buffer)
         };
 
-        let _: std::io::Result<()> = format();
+        let result: std::io::Result<Vec<u8>> = format();
+        if let Ok(formatted) = result {
+            let _ = self.emit(formatted);
+        }
     }
 
     fn on_enter(&self, id: &Id, ctx: Context<'_, S>) {
         let span = ctx.span(id).expect("Span not found, this is a bug");
-        let _ = self.serialize_span(&span, self.make_writer.make_writer(), Type::EnterSpan);
+        if let Ok(serialized) = self.serialize_span(&span, Type::EnterSpan)  {
+            let _ = self.emit(serialized);
+        }
+
     }
 
     fn on_exit(&self, id: &Id, ctx: Context<'_, S>) {
         let span = ctx.span(id).expect("Span not found, this is a bug");
-        let _ = self.serialize_span(&span, self.make_writer.make_writer(), Type::ExitSpan);
+        if let Ok(serialized) = self.serialize_span(&span, Type::ExitSpan)  {
+            let _ = self.emit(serialized);
+        }
     }
 }
