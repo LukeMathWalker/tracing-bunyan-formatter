@@ -174,7 +174,7 @@ dependencies = [
 
 [[package]]
 name = "tracing-bunyan-formatter"
-version = "0.1.5-alpha.0"
+version = "0.1.5"
 dependencies = [
  "chrono",
  "gethostname",
