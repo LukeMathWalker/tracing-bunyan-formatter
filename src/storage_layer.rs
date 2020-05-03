@@ -134,15 +134,17 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
         values.record(visitor);
     }
 
-    /// When we enter a span, save the timestamp in its extensions.
+    /// When we enter a span **for the first time** save the timestamp in its extensions.
     fn on_enter(&self, span: &Id, ctx: Context<'_, S>) {
         let span = ctx.span(span).expect("Span not found, this is a bug");
 
         let mut extensions = span.extensions_mut();
-        extensions.insert(Instant::now());
+        if extensions.get_mut::<Instant>().is_none() {
+            extensions.insert(Instant::now());
+        }
     }
 
-    /// When we exit a span, register how long it took in milliseconds.
+    /// When we close a span, register how long it took in milliseconds.
     fn on_exit(&self, span: &Id, ctx: Context<'_, S>) {
         let span = ctx.span(span).expect("Span not found, this is a bug");
 
