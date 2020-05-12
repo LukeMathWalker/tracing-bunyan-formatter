@@ -5,12 +5,12 @@ use std::fmt;
 use std::io::Write;
 use tracing::{Event, Id, Subscriber};
 use tracing_core::metadata::Level;
+use tracing_core::span::Attributes;
 use tracing_log::AsLog;
 use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::layer::Context;
 use tracing_subscriber::registry::SpanRef;
 use tracing_subscriber::Layer;
-use tracing_core::span::Attributes;
 
 /// Keys for core fields of the Bunyan format (https://github.com/trentm/node-bunyan#core-fields)
 const BUNYAN_VERSION: &str = "v";
