@@ -5,6 +5,7 @@ use std::fmt;
 use std::io::Write;
 use tracing::{Event, Id, Subscriber};
 use tracing_core::metadata::Level;
+use tracing_core::span::Attributes;
 use tracing_log::AsLog;
 use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::layer::Context;
@@ -239,15 +240,15 @@ where
         }
     }
 
-    fn on_enter(&self, id: &Id, ctx: Context<'_, S>) {
+    fn new_span(&self, _attrs: &Attributes, id: &Id, ctx: Context<'_, S>) {
         let span = ctx.span(id).expect("Span not found, this is a bug");
         if let Ok(serialized) = self.serialize_span(&span, Type::EnterSpan) {
             let _ = self.emit(serialized);
         }
     }
 
-    fn on_exit(&self, id: &Id, ctx: Context<'_, S>) {
-        let span = ctx.span(id).expect("Span not found, this is a bug");
+    fn on_close(&self, id: Id, ctx: Context<'_, S>) {
+        let span = ctx.span(&id).expect("Span not found, this is a bug");
         if let Ok(serialized) = self.serialize_span(&span, Type::ExitSpan) {
             let _ = self.emit(serialized);
         }
