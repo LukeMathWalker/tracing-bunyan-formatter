@@ -145,8 +145,8 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
     }
 
     /// When we close a span, register how long it took in milliseconds.
-    fn on_close(&self, span: &Id, ctx: Context<'_, S>) {
-        let span = ctx.span(span).expect("Span not found, this is a bug");
+    fn on_close(&self, span: Id, ctx: Context<'_, S>) {
+        let span = ctx.span(&span).expect("Span not found, this is a bug");
 
         // Using a block to drop the immutable reference to extensions
         // given that we want to borrow it mutably just below
