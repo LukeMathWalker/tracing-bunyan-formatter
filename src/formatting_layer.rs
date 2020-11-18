@@ -101,6 +101,12 @@ impl<W: MakeWriter + 'static> BunyanFormattingLayer<W> {
         let mut map_serializer = serializer.serialize_map(None)?;
         let message = format_span_context(&span, ty);
         self.serialize_bunyan_core_fields(&mut map_serializer, &message, span.metadata().level())?;
+        // Additional metadata useful for debugging
+        // They should be nested under `src` (see https://github.com/trentm/node-bunyan#src )
+        // but `tracing` does not support nested values yet
+        map_serializer.serialize_entry("target", span.metadata().target())?;
+        map_serializer.serialize_entry("line", &span.metadata().line())?;
+        map_serializer.serialize_entry("file", &span.metadata().file())?;
 
         let extensions = span.extensions();
         if let Some(visitor) = extensions.get::<JsonStorage>() {
