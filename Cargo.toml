@@ -1,6 +1,6 @@
 [package]
 name = "tracing-bunyan-formatter"
-version = "0.1.7"
+version = "0.2.0"
 authors = ["Luca Palmieri <rust@lpalmieri.com>"]
 edition = "2018"
 
@@ -18,12 +18,16 @@ categories = ["development-tools::profiling", "development-tools::debugging"]
 [lib]
 path = "src/lib.rs"
 
+[features]
+default = ["arbitrary-precision"]
+arbitrary-precision = ["serde_json/arbitrary_precision"]
+
 [dependencies]
 tracing = { version = "0.1.13", default-features = false, features = ["log", "std"] }
 tracing-subscriber = { version = "0.2.5", default-features = false, features = ["registry", "fmt"] }
 tracing-log = { version = "0.1" }
 log = "0.4.8"
-serde_json = { version = "1.0.52", features = ["arbitrary_precision"] }
+serde_json = { version = "1.0.52" }
 serde = "1.0.106"
 gethostname = "0.2.1"
 tracing-core = "0.1.10"
