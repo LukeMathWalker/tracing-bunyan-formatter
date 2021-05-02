@@ -150,20 +150,22 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
 
         // Using a block to drop the immutable reference to extensions
         // given that we want to borrow it mutably just below
-        let elapsed = {
+        let elapsed_milliseconds = {
             let extensions = span.extensions();
             extensions
                 .get::<Instant>()
-                .expect("Timestamp not found on 'record', this is a bug")
-                .elapsed()
+                .map(|i| i.elapsed().as_millis())
+                // If `Instant` is not in the span extensions it means that the span was never
+                // entered into.
+                .unwrap_or(0)
         };
 
         let mut extensions_mut = span.extensions_mut();
         let visitor = extensions_mut
             .get_mut::<JsonStorage>()
-            .expect("Timestamp not found on 'record', this is a bug");
+            .expect("Visitor not found on 'record', this is a bug");
 
-        if let Ok(elapsed) = serde_json::to_value(elapsed.as_millis()) {
+        if let Ok(elapsed) = serde_json::to_value(elapsed_milliseconds) {
             visitor.values.insert("elapsed_milliseconds", elapsed);
         }
     }
