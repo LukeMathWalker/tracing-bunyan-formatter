@@ -223,6 +223,12 @@ where
                 &message,
                 event.metadata().level(),
             )?;
+            // Additional metadata useful for debugging
+            // They should be nested under `src` (see https://github.com/trentm/node-bunyan#src )
+            // but `tracing` does not support nested values yet
+            map_serializer.serialize_entry("target", event.metadata().target())?;
+            map_serializer.serialize_entry("line", &event.metadata().line())?;
+            map_serializer.serialize_entry("file", &event.metadata().file())?;
 
             // Add all the other fields associated with the event, expect the message we already used.
             for (key, value) in event_visitor
