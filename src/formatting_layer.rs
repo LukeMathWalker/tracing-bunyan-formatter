@@ -22,6 +22,8 @@ const TIME: &str = "time";
 const MESSAGE: &str = "msg";
 const _SOURCE: &str = "src";
 
+const BUNYAN_RESERVED_FIELDS: [&str; 7] = [BUNYAN_VERSION, LEVEL, NAME, HOSTNAME, PID, TIME, MESSAGE];
+
 /// Convert from log levels to Bunyan's levels.
 fn to_bunyan_level(level: &Level) -> u16 {
     match level.as_log() {
@@ -111,7 +113,11 @@ impl<W: MakeWriter + 'static> BunyanFormattingLayer<W> {
         let extensions = span.extensions();
         if let Some(visitor) = extensions.get::<JsonStorage>() {
             for (key, value) in visitor.values() {
-                map_serializer.serialize_entry(key, value)?;
+                if !BUNYAN_RESERVED_FIELDS.contains(key) {
+                    map_serializer.serialize_entry(key, value)?;
+                } else {
+                    tracing::debug!("{} is a reserved field in the bunyan log format. Skipping it.", key);
+                }
             }
         }
         map_serializer.end()?;
