@@ -228,7 +228,7 @@ where
             for (key, value) in event_visitor
                 .values()
                 .iter()
-                .filter(|(&key, _)| key != "message")
+                .filter(|(&key, _)| key != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key))
             {
                 map_serializer.serialize_entry(key, value)?;
             }
@@ -238,7 +238,11 @@ where
                 let extensions = span.extensions();
                 if let Some(visitor) = extensions.get::<JsonStorage>() {
                     for (key, value) in visitor.values() {
-                        map_serializer.serialize_entry(key, value)?;
+                        if !BUNYAN_RESERVED_FIELDS.contains(key) {
+                            map_serializer.serialize_entry(key, value)?;
+                        } else {
+                            tracing::debug!("{} is a reserved field in the bunyan log format. Skipping it.", key);
+                        }
                     }
                 }
             }
