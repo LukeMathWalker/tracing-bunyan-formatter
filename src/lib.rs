@@ -64,6 +64,8 @@
 //! The layered approach we have pursued is not necessarily the most efficient,
 //! but it makes it easier to separate different concerns and re-use common logic across multiple [`Layer`]s.
 //!
+//!
+//!
 //! While the current crate has no ambition to provide any sort of general purpose framework on top of
 //! [`tracing-subscriber`]'s [`Layer`] trait, the information collected by [`JsonStorageLayer`] can be leveraged via
 //! its public API by other downstream layers outside of this crate whose main concern is formatting.
@@ -74,6 +76,10 @@
 //! additional information about each span and store it in [`JsonStorage`].
 //! We could have pursued this compositional approach to add `elapsed_milliseconds` to each span
 //! instead of baking it in [`JsonStorage`] itself.
+//!
+//! ## Optional features
+//! 
+//! You can enable the `arbitrary_precision` feature to handle numbers of arbitrary size losslessly. Be aware of a [known issue with untagged deserialization](https://github.com/LukeMathWalker/tracing-bunyan-formatter/issues/4).
 //!
 //! [`Layer`]: https://docs.rs/tracing-subscriber/0.2.5/tracing_subscriber/layer/trait.Layer.html
 //! [`JsonStorageLayer`]: struct.JsonStorageLayer.html

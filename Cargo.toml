@@ -19,7 +19,7 @@ categories = ["development-tools::profiling", "development-tools::debugging"]
 path = "src/lib.rs"
 
 [features]
-default = ["arbitrary-precision"]
+default = []
 arbitrary-precision = ["serde_json/arbitrary_precision"]
 
 [dependencies]

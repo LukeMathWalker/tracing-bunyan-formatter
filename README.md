@@ -104,6 +104,10 @@ additional information about each span and store it in [`JsonStorage`].
 We could have pursued this compositional approach to add `elapsed_milliseconds` to each span
 instead of baking it in [`JsonStorage`] itself.
 
+## Optional features
+
+You can enable the `arbitrary_precision` feature to handle numbers of arbitrary size losslessly. Be aware of a [known issue with untagged deserialization](https://github.com/LukeMathWalker/tracing-bunyan-formatter/issues/4).
+
 [`Layer`]: https://docs.rs/tracing-subscriber/0.2.5/tracing_subscriber/layer/trait.Layer.html
 [`JsonStorageLayer`]: https://docs.rs/tracing-bunyan-formatter/0.1.6/tracing_bunyan_formatter/struct.JsonStorageLayer.html
 [`JsonStorage`]: https://docs.rs/tracing-bunyan-formatter/0.1.6/tracing_bunyan_formatter/struct.JsonStorage.html
