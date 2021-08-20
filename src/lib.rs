@@ -78,7 +78,7 @@
 //! instead of baking it in [`JsonStorage`] itself.
 //!
 //! ## Optional features
-//! 
+//!
 //! You can enable the `arbitrary_precision` feature to handle numbers of arbitrary size losslessly. Be aware of a [known issue with untagged deserialization](https://github.com/LukeMathWalker/tracing-bunyan-formatter/issues/4).
 //!
 //! [`Layer`]: https://docs.rs/tracing-subscriber/0.2.5/tracing_subscriber/layer/trait.Layer.html
