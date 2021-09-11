@@ -112,3 +112,18 @@ fn parent_properties_are_propagated() {
         assert!(record.get("parent_property").is_some());
     }
 }
+
+#[test]
+fn elapsed_milliseconds_are_present_on_exit_span() {
+    let tracing_output = run_and_get_output(test_action);
+
+    for record in tracing_output {
+        if record
+            .get("msg")
+            .and_then(Value::as_str)
+            .map_or(false, |msg| msg.ends_with("END]"))
+        {
+            assert!(record.get("elapsed_milliseconds").is_some());
+        }
+    }
+}
