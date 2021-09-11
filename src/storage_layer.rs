@@ -51,25 +51,25 @@ impl Visit for JsonStorage<'_> {
     /// Visit a signed 64-bit integer value.
     fn record_i64(&mut self, field: &Field, value: i64) {
         self.values
-            .insert(&field.name(), serde_json::Value::from(value));
+            .insert(field.name(), serde_json::Value::from(value));
     }
 
     /// Visit an unsigned 64-bit integer value.
     fn record_u64(&mut self, field: &Field, value: u64) {
         self.values
-            .insert(&field.name(), serde_json::Value::from(value));
+            .insert(field.name(), serde_json::Value::from(value));
     }
 
     /// Visit a boolean value.
     fn record_bool(&mut self, field: &Field, value: bool) {
         self.values
-            .insert(&field.name(), serde_json::Value::from(value));
+            .insert(field.name(), serde_json::Value::from(value));
     }
 
     /// Visit a string value.
     fn record_str(&mut self, field: &Field, value: &str) {
         self.values
-            .insert(&field.name(), serde_json::Value::from(value));
+            .insert(field.name(), serde_json::Value::from(value));
     }
 
     fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {

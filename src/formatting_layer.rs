@@ -102,7 +102,7 @@ impl<W: MakeWriter + 'static> BunyanFormattingLayer<W> {
         let mut buffer = Vec::new();
         let mut serializer = serde_json::Serializer::new(&mut buffer);
         let mut map_serializer = serializer.serialize_map(None)?;
-        let message = format_span_context(&span, ty);
+        let message = format_span_context(span, ty);
         self.serialize_bunyan_core_fields(&mut map_serializer, &message, span.metadata().level())?;
         // Additional metadata useful for debugging
         // They should be nested under `src` (see https://github.com/trentm/node-bunyan#src )
