@@ -94,7 +94,7 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
     /// Span creation.
     /// This is the only occasion we have to store the fields attached to the span
     /// given that they might have been borrowed from the surrounding context.
-    fn new_span(&self, attrs: &Attributes<'_>, id: &Id, ctx: Context<'_, S>) {
+    fn on_new_span(&self, attrs: &Attributes<'_>, id: &Id, ctx: Context<'_, S>) {
         let span = ctx.span(id).expect("Span not found, this is a bug");
 
         // We want to inherit the fields from the parent span, if there is one.

@@ -39,7 +39,7 @@ fn to_bunyan_level(level: &Level) -> u16 {
 /// This layer is exclusively concerned with formatting information using the [Bunyan format](https://github.com/trentm/node-bunyan).
 /// It relies on the upstream `JsonStorageLayer` to get access to the fields attached to
 /// each span.
-pub struct BunyanFormattingLayer<W: MakeWriter + 'static> {
+pub struct BunyanFormattingLayer<W: for<'a> MakeWriter<'a> + 'static> {
     make_writer: W,
     pid: u32,
     hostname: String,
@@ -47,7 +47,7 @@ pub struct BunyanFormattingLayer<W: MakeWriter + 'static> {
     name: String,
 }
 
-impl<W: MakeWriter + 'static> BunyanFormattingLayer<W> {
+impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     /// Create a new `BunyanFormattingLayer`.
     ///
     /// You have to specify:
@@ -204,7 +204,7 @@ fn format_event_message<S: Subscriber + for<'a> tracing_subscriber::registry::Lo
 impl<S, W> Layer<S> for BunyanFormattingLayer<W>
 where
     S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
-    W: MakeWriter + 'static,
+    W: for<'a> MakeWriter<'a> + 'static,
 {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         // Events do not necessarily happen in the context of a span, hence lookup_current
@@ -269,7 +269,7 @@ where
         }
     }
 
-    fn new_span(&self, _attrs: &Attributes, id: &Id, ctx: Context<'_, S>) {
+    fn on_new_span(&self, _attrs: &Attributes, id: &Id, ctx: Context<'_, S>) {
         let span = ctx.span(id).expect("Span not found, this is a bug");
         if let Ok(serialized) = self.serialize_span(&span, Type::EnterSpan) {
             let _ = self.emit(serialized);
