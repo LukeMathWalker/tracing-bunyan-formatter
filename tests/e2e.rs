@@ -25,7 +25,7 @@ fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
     tracing::subscriber::with_default(subscriber, action);
 
     // Return the formatted output as a string to make assertions against
-    let mut buffer = BUFFER.try_lock().unwrap();
+    let mut buffer = BUFFER.lock().unwrap();
     let output = buffer.to_vec();
     // Clean the buffer to avoid cross-tests interactions
     buffer.clear();
