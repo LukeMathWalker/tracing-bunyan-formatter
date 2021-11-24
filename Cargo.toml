@@ -1,6 +1,6 @@
 [package]
 name = "tracing-bunyan-formatter"
-version = "0.3.1"
+version = "0.3.2-alpha.0"
 authors = ["Luca Palmieri <rust@lpalmieri.com>"]
 edition = "2018"
 
