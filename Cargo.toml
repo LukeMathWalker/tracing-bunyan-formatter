@@ -31,8 +31,9 @@ serde_json = { version = "1.0.52" }
 serde = "1.0.106"
 gethostname = "0.2.1"
 tracing-core = "0.1.10"
-chrono = "0.4.11"
+time = { version = "0.3", default-features = false, features = ["formatting"] }
 
 [dev-dependencies]
 lazy_static = "1.4.0"
 tracing = { version = "0.1.13", default-features = false, features = ["log", "std", "attributes"] }
+time = { version = "0.3", default-features = false, features = ["formatting", "parsing", "local-offset"] }

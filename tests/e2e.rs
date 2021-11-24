@@ -6,6 +6,7 @@ use tracing::{info, span, Level};
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::Registry;
+use time::format_description::well_known::Rfc3339;
 
 mod mock_writer;
 
@@ -88,10 +89,10 @@ fn time_is_formatted_according_to_rfc_3339() {
 
     for record in tracing_output {
         let time = record.get("time").unwrap().as_str().unwrap();
-        let parsed = chrono::DateTime::parse_from_rfc3339(time);
+        let parsed = time::OffsetDateTime::parse(time, &Rfc3339);
         assert!(parsed.is_ok());
         let parsed = parsed.unwrap();
-        assert_eq!(parsed.offset().local_minus_utc(), 0);
+        assert!(parsed.offset().is_utc());
     }
 }
 

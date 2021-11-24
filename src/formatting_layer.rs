@@ -11,6 +11,7 @@ use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::layer::Context;
 use tracing_subscriber::registry::SpanRef;
 use tracing_subscriber::Layer;
+use time::format_description::well_known::Rfc3339;
 
 /// Keys for core fields of the Bunyan format (https://github.com/trentm/node-bunyan#core-fields)
 const BUNYAN_VERSION: &str = "v";
@@ -89,7 +90,9 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         map_serializer.serialize_entry(LEVEL, &to_bunyan_level(level))?;
         map_serializer.serialize_entry(HOSTNAME, &self.hostname)?;
         map_serializer.serialize_entry(PID, &self.pid)?;
-        map_serializer.serialize_entry(TIME, &chrono::Utc::now().to_rfc3339())?;
+        if let Ok(time) = &time::OffsetDateTime::now_utc().format(&Rfc3339) {
+            map_serializer.serialize_entry(TIME, time)?;
+        }
         Ok(())
     }
 
