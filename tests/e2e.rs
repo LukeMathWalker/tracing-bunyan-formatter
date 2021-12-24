@@ -1,6 +1,6 @@
 use crate::mock_writer::MockWriter;
 use lazy_static::lazy_static;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::sync::Mutex;
 use tracing::{info, span, Level};
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
@@ -19,7 +19,7 @@ lazy_static! {
 
 // Run a closure and collect the output emitted by the tracing instrumentation using an in-memory buffer.
 fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
-    let formatting_layer = BunyanFormattingLayer::new("test".into(), || MockWriter::new(&BUFFER));
+    let formatting_layer = BunyanFormattingLayer::with_default_fields("test".into(), || MockWriter::new(&BUFFER), vec![("custom_field".to_string(), json!("custom_value"))]);
     let subscriber = Registry::default()
         .with(JsonStorageLayer)
         .with(formatting_layer);
@@ -80,6 +80,7 @@ fn each_line_has_the_mandatory_bunyan_fields() {
         assert!(record.get("v").is_some());
         assert!(record.get("pid").is_some());
         assert!(record.get("hostname").is_some());
+        assert!(record.get("custom_field").is_some());
     }
 }
 

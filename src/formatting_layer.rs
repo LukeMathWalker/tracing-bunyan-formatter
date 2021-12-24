@@ -46,6 +46,7 @@ pub struct BunyanFormattingLayer<W: for<'a> MakeWriter<'a> + 'static> {
     hostname: String,
     bunyan_version: u8,
     name: String,
+    default_fields: Vec<(String, Value)>,
 }
 
 impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
@@ -75,6 +76,18 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
             pid: std::process::id(),
             hostname: gethostname::gethostname().to_string_lossy().into_owned(),
             bunyan_version: 0,
+            default_fields: Vec::new(),
+        }
+    }
+
+    pub fn with_default_fields(name: String, make_writer: W, default_fields: Vec<(String, Value)>) -> Self {
+        Self {
+            make_writer,
+            name,
+            pid: std::process::id(),
+            hostname: gethostname::gethostname().to_string_lossy().into_owned(),
+            bunyan_version: 0,
+            default_fields,
         }
     }
 
@@ -113,6 +126,18 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         map_serializer.serialize_entry("target", span.metadata().target())?;
         map_serializer.serialize_entry("line", &span.metadata().line())?;
         map_serializer.serialize_entry("file", &span.metadata().file())?;
+
+        // Add all default fields
+        for (key, value) in self.default_fields.iter() {
+            if !BUNYAN_RESERVED_FIELDS.contains(&key.as_str()) {
+                map_serializer.serialize_entry(key, value)?;
+            } else {
+                tracing::debug!(
+                        "{} is a reserved field in the bunyan log format. Skipping it.",
+                        key
+                    );
+            }
+        }
 
         let extensions = span.extensions();
         if let Some(visitor) = extensions.get::<JsonStorage>() {
@@ -236,6 +261,14 @@ where
             map_serializer.serialize_entry("target", event.metadata().target())?;
             map_serializer.serialize_entry("line", &event.metadata().line())?;
             map_serializer.serialize_entry("file", &event.metadata().file())?;
+
+            // Add all default fields
+            for (key, value) in self.default_fields
+                .iter()
+                .filter(|(key, _)| key != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key.as_str()))
+            {
+                map_serializer.serialize_entry(key, value)?;
+            }
 
             // Add all the other fields associated with the event, expect the message we already used.
             for (key, value) in event_visitor
