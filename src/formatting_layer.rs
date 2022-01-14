@@ -1,6 +1,7 @@
 use crate::storage_layer::JsonStorage;
 use serde::ser::{SerializeMap, Serializer};
 use serde_json::Value;
+use std::collections::HashMap;
 use std::fmt;
 use std::io::Write;
 use tracing::{Event, Id, Subscriber};
@@ -46,7 +47,7 @@ pub struct BunyanFormattingLayer<W: for<'a> MakeWriter<'a> + 'static> {
     hostname: String,
     bunyan_version: u8,
     name: String,
-    default_fields: Vec<(String, Value)>,
+    default_fields: HashMap<String, Value>,
 }
 
 impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
@@ -70,17 +71,10 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     /// let formatting_layer = BunyanFormattingLayer::new("tracing_example".into(), || std::io::stdout());
     /// ```
     pub fn new(name: String, make_writer: W) -> Self {
-        Self {
-            make_writer,
-            name,
-            pid: std::process::id(),
-            hostname: gethostname::gethostname().to_string_lossy().into_owned(),
-            bunyan_version: 0,
-            default_fields: Vec::new(),
-        }
+        Self::with_default_fields(name, make_writer, HashMap::new())
     }
 
-    pub fn with_default_fields(name: String, make_writer: W, default_fields: Vec<(String, Value)>) -> Self {
+    pub fn with_default_fields(name: String, make_writer: W, default_fields: HashMap<String, Value>) -> Self {
         Self {
             make_writer,
             name,
@@ -265,7 +259,7 @@ where
             // Add all default fields
             for (key, value) in self.default_fields
                 .iter()
-                .filter(|(key, _)| key != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key.as_str()))
+                .filter(|(key, _)| key.as_str() != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key.as_str()))
             {
                 map_serializer.serialize_entry(key, value)?;
             }
