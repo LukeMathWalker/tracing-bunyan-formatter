@@ -1,13 +1,14 @@
 use crate::mock_writer::MockWriter;
+use claim::assert_some_eq;
 use lazy_static::lazy_static;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Mutex;
+use time::format_description::well_known::Rfc3339;
 use tracing::{info, span, Level};
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::Registry;
-use time::format_description::well_known::Rfc3339;
 
 mod mock_writer;
 
@@ -97,6 +98,36 @@ fn time_is_formatted_according_to_rfc_3339() {
         assert!(parsed.is_ok());
         let parsed = parsed.unwrap();
         assert!(parsed.offset().is_utc());
+    }
+}
+
+#[test]
+fn encode_f64_as_numbers() {
+    let f64_value: f64 = 0.5;
+    let action = || {
+        let span = span!(
+            Level::DEBUG,
+            "parent_span_f64",
+            f64_field = tracing::field::Empty
+        );
+        let _enter = span.enter();
+        span.record("f64_field", &f64_value);
+        info!("testing f64");
+    };
+    let tracing_output = run_and_get_output(action);
+    let info_entry: Vec<&Value> = tracing_output
+        .iter()
+        .filter(|r| {
+            r.get("msg")
+                .and_then(|m| m.as_str())
+                .filter(|m| m.contains("testing f64"))
+                .is_some()
+        })
+        .collect();
+
+    for record in info_entry {
+        let observed_value = record.get("f64_field").and_then(|v| v.as_f64());
+        assert_some_eq!(observed_value, f64_value);
     }
 }
 

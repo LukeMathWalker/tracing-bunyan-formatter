@@ -60,6 +60,12 @@ impl Visit for JsonStorage<'_> {
             .insert(field.name(), serde_json::Value::from(value));
     }
 
+    /// Visit a 64-bit floating point value.
+    fn record_f64(&mut self, field: &Field, value: f64) {
+        self.values
+            .insert(field.name(), serde_json::Value::from(value));
+    }
+
     /// Visit a boolean value.
     fn record_bool(&mut self, field: &Field, value: bool) {
         self.values
