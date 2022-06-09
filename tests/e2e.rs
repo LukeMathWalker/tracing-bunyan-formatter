@@ -115,19 +115,16 @@ fn encode_f64_as_numbers() {
         info!("testing f64");
     };
     let tracing_output = run_and_get_output(action);
-    let info_entry: Vec<&Value> = tracing_output
-        .iter()
-        .filter(|r| {
-            r.get("msg")
-                .and_then(|m| m.as_str())
-                .filter(|m| m.contains("testing f64"))
-                .is_some()
-        })
-        .collect();
 
-    for record in info_entry {
-        let observed_value = record.get("f64_field").and_then(|v| v.as_f64());
-        assert_some_eq!(observed_value, f64_value);
+    for record in tracing_output {
+        if record
+            .get("msg")
+            .and_then(Value::as_str)
+            .map_or(false, |msg| msg.contains("testing f64"))
+        {
+            let observed_value = record.get("f64_field").and_then(|v| v.as_f64());
+            assert_some_eq!(observed_value, f64_value);
+        }
     }
 }
 
