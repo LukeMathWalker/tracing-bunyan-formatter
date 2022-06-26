@@ -178,7 +178,7 @@ dependencies = [
 
 [[package]]
 name = "tracing-bunyan-formatter"
-version = "0.3.3-alpha.0"
+version = "0.3.3"
 dependencies = [
  "claim",
  "gethostname",
