@@ -36,7 +36,7 @@
 //! fn main() {
 //!     let formatting_layer = BunyanFormattingLayer::new("tracing_demo".into(), std::io::stdout);
 //!     let subscriber = Registry::default()
-//!         .with(JsonStorageLayer)
+//!         .with(JsonStorageLayer::new())
 //!         .with(formatting_layer);
 //!     tracing::subscriber::set_global_default(subscriber).unwrap();
 //!
@@ -90,7 +90,9 @@
 //! [`tracing`]: https://docs.rs/tracing
 //! [`tracing`]: https://docs.rs/tracing-subscriber
 mod formatting_layer;
+mod storage_filter;
 mod storage_layer;
 
 pub use formatting_layer::*;
+pub use storage_filter::*;
 pub use storage_layer::*;

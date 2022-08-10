@@ -2,11 +2,13 @@ use crate::mock_writer::MockWriter;
 use claim::assert_some_eq;
 use lazy_static::lazy_static;
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 use time::format_description::well_known::Rfc3339;
 use tracing::{info, span, Level};
-use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_bunyan_formatter::{
+    BunyanFormattingLayer, FilteringMode, JsonStorageFilter, JsonStorageLayer,
+};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::Registry;
 
@@ -20,12 +22,16 @@ lazy_static! {
 }
 
 // Run a closure and collect the output emitted by the tracing instrumentation using an in-memory buffer.
-fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
+fn run_and_get_raw_output<F: Fn()>(action: F, filters: Vec<JsonStorageFilter>) -> String {
     let mut default_fields = HashMap::new();
     default_fields.insert("custom_field".to_string(), json!("custom_value"));
-    let formatting_layer = BunyanFormattingLayer::with_default_fields("test".into(), || MockWriter::new(&BUFFER), default_fields);
+    let formatting_layer = BunyanFormattingLayer::with_default_fields(
+        "test".into(),
+        || MockWriter::new(&BUFFER),
+        default_fields,
+    );
     let subscriber = Registry::default()
-        .with(JsonStorageLayer)
+        .with(JsonStorageLayer::with_filters(filters))
         .with(formatting_layer);
     tracing::subscriber::with_default(subscriber, action);
 
@@ -40,7 +46,13 @@ fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
 // Run a closure and collect the output emitted by the tracing instrumentation using
 // an in-memory buffer as structured new-line-delimited JSON.
 fn run_and_get_output<F: Fn()>(action: F) -> Vec<Value> {
-    run_and_get_raw_output(action)
+    run_filtered_and_get_output(action, Vec::new())
+}
+
+// Run a closure with storage filters and collect the output emitted by the tracing instrumentation
+// using an in-memory buffer as structured new-line-delimited JSON.
+fn run_filtered_and_get_output<F: Fn()>(action: F, filters: Vec<JsonStorageFilter>) -> Vec<Value> {
+    run_and_get_raw_output(action, filters)
         .lines()
         .filter(|&l| !l.is_empty())
         .inspect(|l| println!("{}", l))
@@ -51,12 +63,13 @@ fn run_and_get_output<F: Fn()>(action: F) -> Vec<Value> {
 // Instrumented code to be run to test the behaviour of the tracing instrumentation.
 fn test_action() {
     let a = 2;
-    let span = span!(Level::DEBUG, "shaving_yaks", a);
+    let b = 3;
+    let span = span!(Level::DEBUG, "shaving_yaks", a, b);
     let _enter = span.enter();
 
     info!("pre-shaving yaks");
-    let b = 3;
-    let new_span = span!(Level::DEBUG, "inner shaving", b);
+    let c = 4;
+    let new_span = span!(Level::DEBUG, "inner shaving", c);
     let _enter2 = new_span.enter();
 
     info!("shaving yaks");
@@ -64,7 +77,7 @@ fn test_action() {
 
 #[test]
 fn each_line_is_valid_json() {
-    let tracing_output = run_and_get_raw_output(test_action);
+    let tracing_output = run_and_get_raw_output(test_action, Vec::new());
 
     // Each line is valid JSON
     for line in tracing_output.lines().filter(|&l| !l.is_empty()) {
@@ -157,6 +170,67 @@ fn elapsed_milliseconds_are_present_on_exit_span() {
             .map_or(false, |msg| msg.ends_with("END]"))
         {
             assert!(record.get("elapsed_milliseconds").is_some());
+        }
+    }
+}
+
+#[test]
+fn filter_include_parent_field() {
+    let tracing_output = run_filtered_and_get_output(
+        test_action,
+        vec![JsonStorageFilter::new(
+            HashSet::from(["a".to_string()]),
+            FilteringMode::Include,
+        )],
+    );
+
+    for record in tracing_output {
+        assert!(record.get("a").is_some());
+        if record.get("c").is_some() {
+            assert!(record.get("b").is_none())
+        } else {
+            assert!(record.get("b").is_some())
+        }
+    }
+}
+
+#[test]
+fn filter_exclude_parent_field() {
+    let tracing_output = run_filtered_and_get_output(
+        test_action,
+        vec![JsonStorageFilter::new(
+            HashSet::from(["b".to_string()]),
+            FilteringMode::Exclude,
+        )],
+    );
+
+    for record in tracing_output {
+        assert!(record.get("a").is_some());
+        if record.get("c").is_some() {
+            assert!(record.get("b").is_none())
+        } else {
+            assert!(record.get("b").is_some())
+        }
+    }
+}
+
+#[test]
+fn filter_specific_span() {
+    let tracing_output = run_filtered_and_get_output(
+        test_action,
+        vec![JsonStorageFilter::for_span(
+            "shaving_yaks".to_string(),
+            HashSet::from(["a".to_string()]),
+            FilteringMode::Include,
+        )],
+    );
+
+    for record in tracing_output {
+        assert!(record.get("a").is_some());
+        if record.get("c").is_some() {
+            assert!(record.get("b").is_none())
+        } else {
+            assert!(record.get("b").is_some())
         }
     }
 }
