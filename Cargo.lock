@@ -15,10 +15,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "claim"
-version = "0.5.0"
+name = "claims"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f81099d6bb72e1df6d50bb2347224b666a670912bb7f06dbe867a4a070ab3ce8"
+checksum = "70417827831b0ea25b74bb976a601915e8a82a6643fb2fe726b40287f1aa98ef"
 dependencies = [
  "autocfg",
 ]
@@ -180,7 +180,7 @@ dependencies = [
 name = "tracing-bunyan-formatter"
 version = "0.3.3"
 dependencies = [
- "claim",
+ "claims",
  "gethostname",
  "lazy_static",
  "log",
