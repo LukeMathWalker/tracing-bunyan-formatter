@@ -1,5 +1,5 @@
 use crate::mock_writer::MockWriter;
-use claim::assert_some_eq;
+use claims::assert_some_eq;
 use lazy_static::lazy_static;
 use serde_json::{json, Value};
 use std::collections::HashMap;
