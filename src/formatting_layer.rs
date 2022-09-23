@@ -4,6 +4,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
 use std::io::Write;
+use time::format_description::well_known::Rfc3339;
 use tracing::{Event, Id, Subscriber};
 use tracing_core::metadata::Level;
 use tracing_core::span::Attributes;
@@ -12,7 +13,6 @@ use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::layer::Context;
 use tracing_subscriber::registry::SpanRef;
 use tracing_subscriber::Layer;
-use time::format_description::well_known::Rfc3339;
 
 /// Keys for core fields of the Bunyan format (https://github.com/trentm/node-bunyan#core-fields)
 const BUNYAN_VERSION: &str = "v";
@@ -22,6 +22,7 @@ const HOSTNAME: &str = "hostname";
 const PID: &str = "pid";
 const TIME: &str = "time";
 const MESSAGE: &str = "msg";
+const MESSAGE_KEY: &str = "message";
 const _SOURCE: &str = "src";
 
 const BUNYAN_RESERVED_FIELDS: [&str; 7] =
@@ -48,6 +49,7 @@ pub struct BunyanFormattingLayer<W: for<'a> MakeWriter<'a> + 'static> {
     bunyan_version: u8,
     name: String,
     default_fields: HashMap<String, Value>,
+    render_span: bool,
 }
 
 impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
@@ -74,7 +76,20 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         Self::with_default_fields(name, make_writer, HashMap::new())
     }
 
-    pub fn with_default_fields(name: String, make_writer: W, default_fields: HashMap<String, Value>) -> Self {
+    pub fn with_default_fields(
+        name: String,
+        make_writer: W,
+        default_fields: HashMap<String, Value>,
+    ) -> Self {
+        Self::with_render_span(name, make_writer, default_fields, true)
+    }
+
+    pub fn with_render_span(
+        name: String,
+        make_writer: W,
+        default_fields: HashMap<String, Value>,
+        render_span: bool,
+    ) -> Self {
         Self {
             make_writer,
             name,
@@ -82,6 +97,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
             hostname: gethostname::gethostname().to_string_lossy().into_owned(),
             bunyan_version: 0,
             default_fields,
+            render_span,
         }
     }
 
@@ -199,25 +215,27 @@ fn format_span_context<S: Subscriber + for<'a> tracing_subscriber::registry::Loo
 /// - "[AN_INTERESTING_SPAN - EVENT] My event message" (for an event with a parent span)
 /// - "My event message" (for an event without a parent span)
 fn format_event_message<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>>(
-    current_span: &Option<SpanRef<S>>,
+    span: &Option<SpanRef<S>>,
+    render_span: bool,
     event: &Event,
     event_visitor: &JsonStorage<'_>,
 ) -> String {
-    // Extract the "message" field, if provided. Fallback to the target, if missing.
+    // Extract the MESSAGE_KEY field, if provided. Fallback to the target, if missing.
     let mut message = event_visitor
         .values()
-        .get("message")
-        .map(|v| match v {
+        .get(MESSAGE_KEY)
+        .and_then(|v| match v {
             Value::String(s) => Some(s.as_str()),
             _ => None,
         })
-        .flatten()
         .unwrap_or_else(|| event.metadata().target())
         .to_owned();
 
     // If the event is in the context of a span, prepend the span name to the message.
-    if let Some(span) = &current_span {
-        message = format!("{} {}", format_span_context(span, Type::Event), message);
+    if let Some(span) = &span {
+        if render_span {
+            message = format!("{} {}", format_span_context(span, Type::Event), message);
+        }
     }
 
     message
@@ -243,7 +261,8 @@ where
             let mut serializer = serde_json::Serializer::new(&mut buffer);
             let mut map_serializer = serializer.serialize_map(None)?;
 
-            let message = format_event_message(&current_span, event, &event_visitor);
+            let message = format_event_message(&current_span, self.render_span, event, &event_visitor);
+
             self.serialize_bunyan_core_fields(
                 &mut map_serializer,
                 &message,
@@ -259,7 +278,7 @@ where
             // Add all default fields
             for (key, value) in self.default_fields
                 .iter()
-                .filter(|(key, _)| key.as_str() != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key.as_str()))
+                .filter(|(key, _)| key.as_str() != MESSAGE_KEY && !BUNYAN_RESERVED_FIELDS.contains(&key.as_str()))
             {
                 map_serializer.serialize_entry(key, value)?;
             }
@@ -268,7 +287,7 @@ where
             for (key, value) in event_visitor
                 .values()
                 .iter()
-                .filter(|(&key, _)| key != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key))
+                .filter(|(&key, _)| key != MESSAGE_KEY && !BUNYAN_RESERVED_FIELDS.contains(&key))
             {
                 map_serializer.serialize_entry(key, value)?;
             }
