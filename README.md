@@ -65,7 +65,7 @@ pub fn a_sub_unit_of_work(sub_parameter: u64) {
 fn main() {
     let formatting_layer = BunyanFormattingLayer::new("tracing_demo".into(), std::io::stdout);
     let subscriber = Registry::default()
-        .with(JsonStorageLayer)
+        .with(JsonStorageLayer::new())
         .with(formatting_layer);
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
