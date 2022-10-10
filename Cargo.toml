@@ -24,7 +24,7 @@ arbitrary-precision = ["serde_json/arbitrary_precision"]
 
 [dependencies]
 tracing = { version = "0.1.13", default-features = false, features = ["log", "std"] }
-tracing-subscriber = { version = "0.3.0", default-features = false, features = ["registry", "fmt"] }
+tracing-subscriber = { version = "0.3.16", default-features = false, features = ["registry", "fmt"] }
 tracing-log = { version = "0.1" }
 log = "0.4.8"
 serde_json = { version = "1.0.52" }
