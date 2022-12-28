@@ -4,6 +4,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
 use std::io::Write;
+use time::format_description::well_known::Rfc3339;
 use tracing::{Event, Id, Subscriber};
 use tracing_core::metadata::Level;
 use tracing_core::span::Attributes;
@@ -12,7 +13,6 @@ use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::layer::Context;
 use tracing_subscriber::registry::SpanRef;
 use tracing_subscriber::Layer;
-use time::format_description::well_known::Rfc3339;
 
 /// Keys for core fields of the Bunyan format (https://github.com/trentm/node-bunyan#core-fields)
 const BUNYAN_VERSION: &str = "v";
@@ -74,7 +74,11 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         Self::with_default_fields(name, make_writer, HashMap::new())
     }
 
-    pub fn with_default_fields(name: String, make_writer: W, default_fields: HashMap<String, Value>) -> Self {
+    pub fn with_default_fields(
+        name: String,
+        make_writer: W,
+        default_fields: HashMap<String, Value>,
+    ) -> Self {
         Self {
             make_writer,
             name,
@@ -127,9 +131,9 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
                 map_serializer.serialize_entry(key, value)?;
             } else {
                 tracing::debug!(
-                        "{} is a reserved field in the bunyan log format. Skipping it.",
-                        key
-                    );
+                    "{} is a reserved field in the bunyan log format. Skipping it.",
+                    key
+                );
             }
         }
 
@@ -257,10 +261,9 @@ where
             map_serializer.serialize_entry("file", &event.metadata().file())?;
 
             // Add all default fields
-            for (key, value) in self.default_fields
-                .iter()
-                .filter(|(key, _)| key.as_str() != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key.as_str()))
-            {
+            for (key, value) in self.default_fields.iter().filter(|(key, _)| {
+                key.as_str() != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key.as_str())
+            }) {
                 map_serializer.serialize_entry(key, value)?;
             }
 
