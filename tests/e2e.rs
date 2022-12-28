@@ -27,7 +27,9 @@ fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
         "test".into(),
         || MockWriter::new(&BUFFER),
         default_fields,
-    );
+    )
+    .skip_fields(&["skipped"])
+    .unwrap();
     let subscriber = Registry::default()
         .with(JsonStorageLayer)
         .with(formatting_layer);
@@ -60,7 +62,8 @@ fn test_action() {
 
     info!("pre-shaving yaks");
     let b = 3;
-    let new_span = span!(Level::DEBUG, "inner shaving", b);
+    let skipped = false;
+    let new_span = span!(Level::DEBUG, "inner shaving", b, skipped);
     let _enter2 = new_span.enter();
 
     info!("shaving yaks");
@@ -162,5 +165,30 @@ fn elapsed_milliseconds_are_present_on_exit_span() {
         {
             assert!(record.get("elapsed_milliseconds").is_some());
         }
+    }
+}
+
+#[test]
+fn skip_fields() {
+    let tracing_output = run_and_get_output(test_action);
+
+    for record in tracing_output {
+        assert!(record.get("skipped").is_none());
+    }
+}
+
+#[test]
+fn skipping_core_fields_is_not_allowed() {
+    let result = BunyanFormattingLayer::new("test".into(), || MockWriter::new(&BUFFER))
+        .skip_fields(&["level"]);
+
+    match result {
+        Err(err) => {
+            assert_eq!(
+                "level is a core field in the bunyan log format, it can't be skipped",
+                err.to_string()
+            );
+        }
+        Ok(_) => panic!("skipping core fields shouldn't work"),
     }
 }
