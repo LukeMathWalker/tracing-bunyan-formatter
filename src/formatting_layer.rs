@@ -25,7 +25,7 @@ const TIME: &str = "time";
 const MESSAGE: &str = "msg";
 const _SOURCE: &str = "src";
 
-const BUNYAN_RESERVED_FIELDS: [&str; 7] =
+const BUNYAN_REQUIRED_FIELDS: [&str; 7] =
     [BUNYAN_VERSION, LEVEL, NAME, HOSTNAME, PID, TIME, MESSAGE];
 
 /// Convert from log levels to Bunyan's levels.
@@ -55,9 +55,9 @@ pub struct BunyanFormattingLayer<W: for<'a> MakeWriter<'a> + 'static> {
 /// This error will be returned in [`BunyanFormattingLayer::skip_fields`] if trying to skip a core field.
 #[non_exhaustive]
 #[derive(Debug)]
-pub struct InvalidFieldError(String);
+pub struct SkipFieldError(String);
 
-impl fmt::Display for InvalidFieldError {
+impl fmt::Display for SkipFieldError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -67,7 +67,7 @@ impl fmt::Display for InvalidFieldError {
     }
 }
 
-impl std::error::Error for InvalidFieldError {}
+impl std::error::Error for SkipFieldError {}
 
 impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     /// Create a new `BunyanFormattingLayer`.
@@ -110,16 +110,18 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     }
 
     /// Add fields to skip when formatting with this layer.
-    pub fn skip_fields<T>(mut self, fields: &[T]) -> Result<Self, InvalidFieldError>
-    where
-        T: AsRef<str>,
+    ///
+    /// It returns an error if you try to skip a required core Bunyan field (e.g. `name`).
+    /// You can skip optional core Bunyan fields (e.g. `line`, `file`, `target`).
+    pub fn skip_fields<T>(mut self, fields: T) -> Result<Self, SkipFieldError>
+        where
+            T: Iterator<Item=String>
     {
         for field in fields {
-            let field = field.as_ref();
-            if BUNYAN_RESERVED_FIELDS.contains(&field) {
-                return Err(InvalidFieldError(field.to_string()));
+            if BUNYAN_REQUIRED_FIELDS.contains(&field.as_str()) {
+                return Err(SkipFieldError(field));
             }
-            self.skip_fields.insert(field.to_string());
+            self.skip_fields.insert(field);
         }
 
         Ok(self)
@@ -127,7 +129,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
 
     fn serialize_bunyan_core_fields(
         &self,
-        map_serializer: &mut impl SerializeMap<Error = serde_json::Error>,
+        map_serializer: &mut impl SerializeMap<Error=serde_json::Error>,
         message: &str,
         level: &Level,
     ) -> Result<(), std::io::Error> {
@@ -145,12 +147,12 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
 
     fn serialize_field<V>(
         &self,
-        map_serializer: &mut impl SerializeMap<Error = serde_json::Error>,
+        map_serializer: &mut impl SerializeMap<Error=serde_json::Error>,
         key: &str,
         value: &V,
     ) -> Result<(), std::io::Error>
-    where
-        V: Serialize + ?Sized,
+        where
+            V: Serialize + ?Sized,
     {
         if !self.skip_fields.contains(key) {
             map_serializer.serialize_entry(key, value)?;
@@ -179,7 +181,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
 
         // Add all default fields
         for (key, value) in self.default_fields.iter() {
-            if !BUNYAN_RESERVED_FIELDS.contains(&key.as_str()) {
+            if !BUNYAN_REQUIRED_FIELDS.contains(&key.as_str()) {
                 self.serialize_field(&mut map_serializer, key, value)?;
             } else {
                 tracing::debug!(
@@ -192,7 +194,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         let extensions = span.extensions();
         if let Some(visitor) = extensions.get::<JsonStorage>() {
             for (key, value) in visitor.values() {
-                if !BUNYAN_RESERVED_FIELDS.contains(key) {
+                if !BUNYAN_REQUIRED_FIELDS.contains(key) {
                     self.serialize_field(&mut map_serializer, key, value)?;
                 } else {
                     tracing::debug!(
@@ -280,9 +282,9 @@ fn format_event_message<S: Subscriber + for<'a> tracing_subscriber::registry::Lo
 }
 
 impl<S, W> Layer<S> for BunyanFormattingLayer<W>
-where
-    S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
-    W: for<'a> MakeWriter<'a> + 'static,
+    where
+        S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
+        W: for<'a> MakeWriter<'a> + 'static,
 {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         // Events do not necessarily happen in the context of a span, hence lookup_current
@@ -314,7 +316,7 @@ where
 
             // Add all default fields
             for (key, value) in self.default_fields.iter().filter(|(key, _)| {
-                key.as_str() != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key.as_str())
+                key.as_str() != "message" && !BUNYAN_REQUIRED_FIELDS.contains(&key.as_str())
             }) {
                 self.serialize_field(&mut map_serializer, key, value)?;
             }
@@ -323,7 +325,7 @@ where
             for (key, value) in event_visitor
                 .values()
                 .iter()
-                .filter(|(&key, _)| key != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key))
+                .filter(|(&key, _)| key != "message" && !BUNYAN_REQUIRED_FIELDS.contains(&key))
             {
                 self.serialize_field(&mut map_serializer, key, value)?;
             }
@@ -333,7 +335,7 @@ where
                 let extensions = span.extensions();
                 if let Some(visitor) = extensions.get::<JsonStorage>() {
                     for (key, value) in visitor.values() {
-                        if !BUNYAN_RESERVED_FIELDS.contains(key) {
+                        if !BUNYAN_REQUIRED_FIELDS.contains(key) {
                             self.serialize_field(&mut map_serializer, key, value)?;
                         } else {
                             tracing::debug!(
