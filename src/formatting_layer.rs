@@ -1,9 +1,11 @@
 use crate::storage_layer::JsonStorage;
-use serde::ser::{SerializeMap, Serializer};
+use ahash::{HashSet, HashSetExt};
+use serde::ser::{Serialize, SerializeMap, Serializer};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fmt;
 use std::io::Write;
+use time::format_description::well_known::Rfc3339;
 use tracing::{Event, Id, Subscriber};
 use tracing_core::metadata::Level;
 use tracing_core::span::Attributes;
@@ -12,7 +14,6 @@ use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::layer::Context;
 use tracing_subscriber::registry::SpanRef;
 use tracing_subscriber::Layer;
-use time::format_description::well_known::Rfc3339;
 
 /// Keys for core fields of the Bunyan format (https://github.com/trentm/node-bunyan#core-fields)
 const BUNYAN_VERSION: &str = "v";
@@ -48,7 +49,25 @@ pub struct BunyanFormattingLayer<W: for<'a> MakeWriter<'a> + 'static> {
     bunyan_version: u8,
     name: String,
     default_fields: HashMap<String, Value>,
+    skip_fields: HashSet<String>,
 }
+
+/// This error will be returned in [`BunyanFormattingLayer::skip_fields`] if trying to skip a core field.
+#[non_exhaustive]
+#[derive(Debug)]
+pub struct InvalidFieldError(String);
+
+impl fmt::Display for InvalidFieldError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} is a core field in the bunyan log format, it can't be skipped",
+            &self.0
+        )
+    }
+}
+
+impl std::error::Error for InvalidFieldError {}
 
 impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     /// Create a new `BunyanFormattingLayer`.
@@ -74,7 +93,11 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         Self::with_default_fields(name, make_writer, HashMap::new())
     }
 
-    pub fn with_default_fields(name: String, make_writer: W, default_fields: HashMap<String, Value>) -> Self {
+    pub fn with_default_fields(
+        name: String,
+        make_writer: W,
+        default_fields: HashMap<String, Value>,
+    ) -> Self {
         Self {
             make_writer,
             name,
@@ -82,7 +105,24 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
             hostname: gethostname::gethostname().to_string_lossy().into_owned(),
             bunyan_version: 0,
             default_fields,
+            skip_fields: HashSet::new(),
         }
+    }
+
+    /// Add fields to skip when formatting with this layer.
+    pub fn skip_fields<T>(mut self, fields: &[T]) -> Result<Self, InvalidFieldError>
+    where
+        T: AsRef<str>,
+    {
+        for field in fields {
+            let field = field.as_ref();
+            if BUNYAN_RESERVED_FIELDS.contains(&field) {
+                return Err(InvalidFieldError(field.to_string()));
+            }
+            self.skip_fields.insert(field.to_string());
+        }
+
+        Ok(self)
     }
 
     fn serialize_bunyan_core_fields(
@@ -103,6 +143,22 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         Ok(())
     }
 
+    fn serialize_field<V>(
+        &self,
+        map_serializer: &mut impl SerializeMap<Error = serde_json::Error>,
+        key: &str,
+        value: &V,
+    ) -> Result<(), std::io::Error>
+    where
+        V: Serialize + ?Sized,
+    {
+        if !self.skip_fields.contains(key) {
+            map_serializer.serialize_entry(key, value)?;
+        }
+
+        Ok(())
+    }
+
     /// Given a span, it serialised it to a in-memory buffer (vector of bytes).
     fn serialize_span<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>>(
         &self,
@@ -117,19 +173,19 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         // Additional metadata useful for debugging
         // They should be nested under `src` (see https://github.com/trentm/node-bunyan#src )
         // but `tracing` does not support nested values yet
-        map_serializer.serialize_entry("target", span.metadata().target())?;
-        map_serializer.serialize_entry("line", &span.metadata().line())?;
-        map_serializer.serialize_entry("file", &span.metadata().file())?;
+        self.serialize_field(&mut map_serializer, "target", span.metadata().target())?;
+        self.serialize_field(&mut map_serializer, "line", &span.metadata().line())?;
+        self.serialize_field(&mut map_serializer, "file", &span.metadata().file())?;
 
         // Add all default fields
         for (key, value) in self.default_fields.iter() {
             if !BUNYAN_RESERVED_FIELDS.contains(&key.as_str()) {
-                map_serializer.serialize_entry(key, value)?;
+                self.serialize_field(&mut map_serializer, key, value)?;
             } else {
                 tracing::debug!(
-                        "{} is a reserved field in the bunyan log format. Skipping it.",
-                        key
-                    );
+                    "{} is a reserved field in the bunyan log format. Skipping it.",
+                    key
+                );
             }
         }
 
@@ -137,7 +193,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         if let Some(visitor) = extensions.get::<JsonStorage>() {
             for (key, value) in visitor.values() {
                 if !BUNYAN_RESERVED_FIELDS.contains(key) {
-                    map_serializer.serialize_entry(key, value)?;
+                    self.serialize_field(&mut map_serializer, key, value)?;
                 } else {
                     tracing::debug!(
                         "{} is a reserved field in the bunyan log format. Skipping it.",
@@ -252,16 +308,15 @@ where
             // Additional metadata useful for debugging
             // They should be nested under `src` (see https://github.com/trentm/node-bunyan#src )
             // but `tracing` does not support nested values yet
-            map_serializer.serialize_entry("target", event.metadata().target())?;
-            map_serializer.serialize_entry("line", &event.metadata().line())?;
-            map_serializer.serialize_entry("file", &event.metadata().file())?;
+            self.serialize_field(&mut map_serializer, "target", event.metadata().target())?;
+            self.serialize_field(&mut map_serializer, "line", &event.metadata().line())?;
+            self.serialize_field(&mut map_serializer, "file", &event.metadata().file())?;
 
             // Add all default fields
-            for (key, value) in self.default_fields
-                .iter()
-                .filter(|(key, _)| key.as_str() != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key.as_str()))
-            {
-                map_serializer.serialize_entry(key, value)?;
+            for (key, value) in self.default_fields.iter().filter(|(key, _)| {
+                key.as_str() != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key.as_str())
+            }) {
+                self.serialize_field(&mut map_serializer, key, value)?;
             }
 
             // Add all the other fields associated with the event, expect the message we already used.
@@ -270,7 +325,7 @@ where
                 .iter()
                 .filter(|(&key, _)| key != "message" && !BUNYAN_RESERVED_FIELDS.contains(&key))
             {
-                map_serializer.serialize_entry(key, value)?;
+                self.serialize_field(&mut map_serializer, key, value)?;
             }
 
             // Add all the fields from the current span, if we have one.
@@ -279,7 +334,7 @@ where
                 if let Some(visitor) = extensions.get::<JsonStorage>() {
                     for (key, value) in visitor.values() {
                         if !BUNYAN_RESERVED_FIELDS.contains(key) {
-                            map_serializer.serialize_entry(key, value)?;
+                            self.serialize_field(&mut map_serializer, key, value)?;
                         } else {
                             tracing::debug!(
                                 "{} is a reserved field in the bunyan log format. Skipping it.",
