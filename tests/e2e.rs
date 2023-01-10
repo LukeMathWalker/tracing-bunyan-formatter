@@ -23,12 +23,13 @@ lazy_static! {
 fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
     let mut default_fields = HashMap::new();
     default_fields.insert("custom_field".to_string(), json!("custom_value"));
+    let skipped_fields = vec!["skipped"];
     let formatting_layer = BunyanFormattingLayer::with_default_fields(
         "test".into(),
         || MockWriter::new(&BUFFER),
         default_fields,
     )
-    .skip_fields(&["skipped"])
+    .skip_fields(skipped_fields.into_iter())
     .unwrap();
     let subscriber = Registry::default()
         .with(JsonStorageLayer)
@@ -48,7 +49,7 @@ fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
 fn run_and_get_output<F: Fn()>(action: F) -> Vec<Value> {
     run_and_get_raw_output(action)
         .lines()
-        .filter(|&l| !l.is_empty())
+        .filter(|&l| !l.trim().is_empty())
         .inspect(|l| println!("{}", l))
         .map(|line| serde_json::from_str::<Value>(line).unwrap())
         .collect()
@@ -118,7 +119,7 @@ fn encode_f64_as_numbers() {
             f64_field = tracing::field::Empty
         );
         let _enter = span.enter();
-        span.record("f64_field", &f64_value);
+        span.record("f64_field", f64_value);
         info!("testing f64");
     };
     let tracing_output = run_and_get_output(action);
@@ -179,8 +180,9 @@ fn skip_fields() {
 
 #[test]
 fn skipping_core_fields_is_not_allowed() {
+    let skipped_fields = vec!["level"];
     let result = BunyanFormattingLayer::new("test".into(), || MockWriter::new(&BUFFER))
-        .skip_fields(&["level"]);
+        .skip_fields(skipped_fields.into_iter());
 
     match result {
         Err(err) => {

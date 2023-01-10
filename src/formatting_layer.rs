@@ -77,6 +77,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     /// - a `make_writer`, which will be used to get a `Write` instance to write formatted records to.
     ///
     /// ## Using stdout
+    ///
     /// ```rust
     /// use tracing_bunyan_formatter::BunyanFormattingLayer;
     ///
@@ -84,6 +85,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     /// ```
     ///
     /// If you prefer, you can use closure syntax:
+    ///
     /// ```rust
     /// use tracing_bunyan_formatter::BunyanFormattingLayer;
     ///
@@ -93,6 +95,21 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         Self::with_default_fields(name, make_writer, HashMap::new())
     }
 
+    /// Add default fields to all formatted records.
+    ///
+    /// ```rust
+    /// use std::collections::HashMap;
+    /// use serde_json::json;
+    /// use tracing_bunyan_formatter::BunyanFormattingLayer;
+    ///
+    /// let mut default_fields = HashMap::new();
+    /// default_fields.insert("custom_field".to_string(), json!("custom_value"));
+    /// let formatting_layer = BunyanFormattingLayer::with_default_fields(
+    ///     "test".into(),
+    ///     std::io::stdout,
+    ///     default_fields,
+    /// );
+    /// ```
     pub fn with_default_fields(
         name: String,
         make_writer: W,
@@ -113,11 +130,22 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     ///
     /// It returns an error if you try to skip a required core Bunyan field (e.g. `name`).
     /// You can skip optional core Bunyan fields (e.g. `line`, `file`, `target`).
-    pub fn skip_fields<T>(mut self, fields: T) -> Result<Self, SkipFieldError>
-        where
-            T: Iterator<Item=String>
+    ///
+    /// ```rust
+    /// use tracing_bunyan_formatter::BunyanFormattingLayer;
+    ///
+    /// let skipped_fields = vec!["skipped"];
+    /// let formatting_layer = BunyanFormattingLayer::new("test".into(), std::io::stdout)
+    ///     .skip_fields(skipped_fields.into_iter())
+    ///     .expect("One of the specified fields cannot be skipped");
+    /// ```
+    pub fn skip_fields<Fields, Field>(mut self, fields: Fields) -> Result<Self, SkipFieldError>
+    where
+        Fields: Iterator<Item = Field>,
+        Field: Into<String>,
     {
         for field in fields {
+            let field = field.into();
             if BUNYAN_REQUIRED_FIELDS.contains(&field.as_str()) {
                 return Err(SkipFieldError(field));
             }
@@ -129,7 +157,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
 
     fn serialize_bunyan_core_fields(
         &self,
-        map_serializer: &mut impl SerializeMap<Error=serde_json::Error>,
+        map_serializer: &mut impl SerializeMap<Error = serde_json::Error>,
         message: &str,
         level: &Level,
     ) -> Result<(), std::io::Error> {
@@ -147,12 +175,12 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
 
     fn serialize_field<V>(
         &self,
-        map_serializer: &mut impl SerializeMap<Error=serde_json::Error>,
+        map_serializer: &mut impl SerializeMap<Error = serde_json::Error>,
         key: &str,
         value: &V,
     ) -> Result<(), std::io::Error>
-        where
-            V: Serialize + ?Sized,
+    where
+        V: Serialize + ?Sized,
     {
         if !self.skip_fields.contains(key) {
             map_serializer.serialize_entry(key, value)?;
@@ -205,20 +233,19 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
             }
         }
         map_serializer.end()?;
+        // We add a trailing new line.
+        buffer.write_all(b"\n")?;
         Ok(buffer)
     }
 
     /// Given an in-memory buffer holding a complete serialised record, flush it to the writer
     /// returned by self.make_writer.
     ///
-    /// We add a trailing new-line at the end of the serialised record.
-    ///
     /// If we write directly to the writer returned by self.make_writer in more than one go
     /// we can end up with broken/incoherent bits and pieces of those records when
     /// running multi-threaded/concurrent programs.
-    fn emit(&self, mut buffer: &mut [u8]) -> Result<(), std::io::Error> {
-        buffer.write_all(b"\n")?;
-        self.make_writer.make_writer().write_all(&buffer)
+    fn emit(&self, buffer: &[u8]) -> Result<(), std::io::Error> {
+        self.make_writer.make_writer().write_all(buffer)
     }
 }
 
@@ -265,11 +292,10 @@ fn format_event_message<S: Subscriber + for<'a> tracing_subscriber::registry::Lo
     let mut message = event_visitor
         .values()
         .get("message")
-        .map(|v| match v {
+        .and_then(|v| match v {
             Value::String(s) => Some(s.as_str()),
             _ => None,
         })
-        .flatten()
         .unwrap_or_else(|| event.metadata().target())
         .to_owned();
 
@@ -282,9 +308,9 @@ fn format_event_message<S: Subscriber + for<'a> tracing_subscriber::registry::Lo
 }
 
 impl<S, W> Layer<S> for BunyanFormattingLayer<W>
-    where
-        S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
-        W: for<'a> MakeWriter<'a> + 'static,
+where
+    S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
+    W: for<'a> MakeWriter<'a> + 'static,
 {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         // Events do not necessarily happen in the context of a span, hence lookup_current
@@ -347,26 +373,29 @@ impl<S, W> Layer<S> for BunyanFormattingLayer<W>
                 }
             }
             map_serializer.end()?;
+            // We add a trailing new line.
+            buffer.write_all(b"\n")?;
+
             Ok(buffer)
         };
 
         let result: std::io::Result<Vec<u8>> = format();
-        if let Ok(mut formatted) = result {
-            let _ = self.emit(&mut formatted);
+        if let Ok(formatted) = result {
+            let _ = self.emit(&formatted);
         }
     }
 
     fn on_new_span(&self, _attrs: &Attributes, id: &Id, ctx: Context<'_, S>) {
         let span = ctx.span(id).expect("Span not found, this is a bug");
-        if let Ok(mut serialized) = self.serialize_span(&span, Type::EnterSpan) {
-            let _ = self.emit(&mut serialized);
+        if let Ok(serialized) = self.serialize_span(&span, Type::EnterSpan) {
+            let _ = self.emit(&serialized);
         }
     }
 
     fn on_close(&self, id: Id, ctx: Context<'_, S>) {
         let span = ctx.span(&id).expect("Span not found, this is a bug");
-        if let Ok(mut serialized) = self.serialize_span(&span, Type::ExitSpan) {
-            let _ = self.emit(&mut serialized);
+        if let Ok(serialized) = self.serialize_span(&span, Type::ExitSpan) {
+            let _ = self.emit(&serialized);
         }
     }
 }
