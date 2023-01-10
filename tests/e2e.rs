@@ -119,7 +119,7 @@ fn encode_f64_as_numbers() {
             f64_field = tracing::field::Empty
         );
         let _enter = span.enter();
-        span.record("f64_field", &f64_value);
+        span.record("f64_field", f64_value);
         info!("testing f64");
     };
     let tracing_output = run_and_get_output(action);

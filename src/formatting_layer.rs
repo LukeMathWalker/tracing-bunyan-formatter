@@ -228,7 +228,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     /// we can end up with broken/incoherent bits and pieces of those records when
     /// running multi-threaded/concurrent programs.
     fn emit(&self, buffer: &mut [u8]) -> Result<(), std::io::Error> {
-        self.make_writer.make_writer().write_all(&buffer)
+        self.make_writer.make_writer().write_all(buffer)
     }
 }
 
@@ -275,11 +275,10 @@ fn format_event_message<S: Subscriber + for<'a> tracing_subscriber::registry::Lo
     let mut message = event_visitor
         .values()
         .get("message")
-        .map(|v| match v {
+        .and_then(|v| match v {
             Value::String(s) => Some(s.as_str()),
             _ => None,
         })
-        .flatten()
         .unwrap_or_else(|| event.metadata().target())
         .to_owned();
 
