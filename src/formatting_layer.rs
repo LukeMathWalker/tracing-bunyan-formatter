@@ -77,6 +77,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     /// - a `make_writer`, which will be used to get a `Write` instance to write formatted records to.
     ///
     /// ## Using stdout
+    ///
     /// ```rust
     /// use tracing_bunyan_formatter::BunyanFormattingLayer;
     ///
@@ -84,6 +85,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     /// ```
     ///
     /// If you prefer, you can use closure syntax:
+    ///
     /// ```rust
     /// use tracing_bunyan_formatter::BunyanFormattingLayer;
     ///
@@ -93,6 +95,21 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         Self::with_default_fields(name, make_writer, HashMap::new())
     }
 
+    /// Add default fields to all formatted records.
+    ///
+    /// ```rust
+    /// use std::collections::HashMap;
+    /// use serde_json::json;
+    /// use tracing_bunyan_formatter::BunyanFormattingLayer;
+    ///
+    /// let mut default_fields = HashMap::new();
+    /// default_fields.insert("custom_field".to_string(), json!("custom_value"));
+    /// let formatting_layer = BunyanFormattingLayer::with_default_fields(
+    ///     "test".into(),
+    ///     std::io::stdout,
+    ///     default_fields,
+    /// );
+    /// ```
     pub fn with_default_fields(
         name: String,
         make_writer: W,
