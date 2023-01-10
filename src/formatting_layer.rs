@@ -113,11 +113,22 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     ///
     /// It returns an error if you try to skip a required core Bunyan field (e.g. `name`).
     /// You can skip optional core Bunyan fields (e.g. `line`, `file`, `target`).
-    pub fn skip_fields<T>(mut self, fields: T) -> Result<Self, SkipFieldError>
+    ///
+    /// ```rust
+    /// use tracing_bunyan_formatter::BunyanFormattingLayer;
+    ///
+    /// let skipped_fields = vec!["skipped"];
+    /// let formatting_layer = BunyanFormattingLayer::new("test".into(), std::io::stdout)
+    ///     .skip_fields(skipped_fields.into_iter())
+    ///     .expect("One of the specified fields cannot be skipped");
+    /// ```
+    pub fn skip_fields<Fields, Field>(mut self, fields: Fields) -> Result<Self, SkipFieldError>
         where
-            T: Iterator<Item=String>
+            Fields: Iterator<Item=Field>,
+            Field: Into<String>
     {
         for field in fields {
+            let field = field.into();
             if BUNYAN_REQUIRED_FIELDS.contains(&field.as_str()) {
                 return Err(SkipFieldError(field));
             }

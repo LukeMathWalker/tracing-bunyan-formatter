@@ -23,13 +23,14 @@ lazy_static! {
 fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
     let mut default_fields = HashMap::new();
     default_fields.insert("custom_field".to_string(), json!("custom_value"));
+    let skipped_fields = vec!["skipped"];
     let formatting_layer = BunyanFormattingLayer::with_default_fields(
         "test".into(),
         || MockWriter::new(&BUFFER),
         default_fields,
     )
-    .skip_fields(&["skipped"])
-    .unwrap();
+        .skip_fields(skipped_fields.into_iter())
+        .unwrap();
     let subscriber = Registry::default()
         .with(JsonStorageLayer)
         .with(formatting_layer);
@@ -179,8 +180,9 @@ fn skip_fields() {
 
 #[test]
 fn skipping_core_fields_is_not_allowed() {
+    let skipped_fields = vec!["skipped"];
     let result = BunyanFormattingLayer::new("test".into(), || MockWriter::new(&BUFFER))
-        .skip_fields(&["level"]);
+        .skip_fields(skipped_fields.into_iter());
 
     match result {
         Err(err) => {
