@@ -2,7 +2,7 @@ version: 2
 jobs:
   build-and-test:
     docker:
-      - image: circleci/rust
+      - image: cimg/rust
     environment:
       # Fail the build if there are warnings
       RUSTFLAGS: '-D warnings'
@@ -33,7 +33,7 @@ jobs:
 
   security:
     docker:
-      - image: circleci/rust
+      - image: cimg/rust
     steps:
       - checkout
       - run:
@@ -48,7 +48,7 @@ jobs:
 
   format-and-lint:
     docker:
-      - image: circleci/rust
+      - image: cimg/rust
     steps:
       - checkout
       - run:
