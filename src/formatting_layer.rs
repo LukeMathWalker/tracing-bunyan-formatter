@@ -140,9 +140,9 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     ///     .expect("One of the specified fields cannot be skipped");
     /// ```
     pub fn skip_fields<Fields, Field>(mut self, fields: Fields) -> Result<Self, SkipFieldError>
-        where
-            Fields: Iterator<Item=Field>,
-            Field: Into<String>
+    where
+        Fields: Iterator<Item = Field>,
+        Field: Into<String>,
     {
         for field in fields {
             let field = field.into();
@@ -157,7 +157,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
 
     fn serialize_bunyan_core_fields(
         &self,
-        map_serializer: &mut impl SerializeMap<Error=serde_json::Error>,
+        map_serializer: &mut impl SerializeMap<Error = serde_json::Error>,
         message: &str,
         level: &Level,
     ) -> Result<(), std::io::Error> {
@@ -175,12 +175,12 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
 
     fn serialize_field<V>(
         &self,
-        map_serializer: &mut impl SerializeMap<Error=serde_json::Error>,
+        map_serializer: &mut impl SerializeMap<Error = serde_json::Error>,
         key: &str,
         value: &V,
     ) -> Result<(), std::io::Error>
-        where
-            V: Serialize + ?Sized,
+    where
+        V: Serialize + ?Sized,
     {
         if !self.skip_fields.contains(key) {
             map_serializer.serialize_entry(key, value)?;
@@ -308,9 +308,9 @@ fn format_event_message<S: Subscriber + for<'a> tracing_subscriber::registry::Lo
 }
 
 impl<S, W> Layer<S> for BunyanFormattingLayer<W>
-    where
-        S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
-        W: for<'a> MakeWriter<'a> + 'static,
+where
+    S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>,
+    W: for<'a> MakeWriter<'a> + 'static,
 {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         // Events do not necessarily happen in the context of a span, hence lookup_current

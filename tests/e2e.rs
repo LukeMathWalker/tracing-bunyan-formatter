@@ -29,8 +29,8 @@ fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
         || MockWriter::new(&BUFFER),
         default_fields,
     )
-        .skip_fields(skipped_fields.into_iter())
-        .unwrap();
+    .skip_fields(skipped_fields.into_iter())
+    .unwrap();
     let subscriber = Registry::default()
         .with(JsonStorageLayer)
         .with(formatting_layer);
