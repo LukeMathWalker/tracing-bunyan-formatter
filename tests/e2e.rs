@@ -49,7 +49,7 @@ fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
 fn run_and_get_output<F: Fn()>(action: F) -> Vec<Value> {
     run_and_get_raw_output(action)
         .lines()
-        .filter(|&l| !l.is_empty())
+        .filter(|&l| !l.trim().is_empty())
         .inspect(|l| println!("{}", l))
         .map(|line| serde_json::from_str::<Value>(line).unwrap())
         .collect()
@@ -180,7 +180,7 @@ fn skip_fields() {
 
 #[test]
 fn skipping_core_fields_is_not_allowed() {
-    let skipped_fields = vec!["skipped"];
+    let skipped_fields = vec!["level"];
     let result = BunyanFormattingLayer::new("test".into(), || MockWriter::new(&BUFFER))
         .skip_fields(skipped_fields.into_iter());
 

@@ -216,19 +216,18 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
             }
         }
         map_serializer.end()?;
+        // We add a trailing new line.
+        buffer.write_all(b"\n")?;
         Ok(buffer)
     }
 
     /// Given an in-memory buffer holding a complete serialised record, flush it to the writer
     /// returned by self.make_writer.
     ///
-    /// We add a trailing new-line at the end of the serialised record.
-    ///
     /// If we write directly to the writer returned by self.make_writer in more than one go
     /// we can end up with broken/incoherent bits and pieces of those records when
     /// running multi-threaded/concurrent programs.
-    fn emit(&self, mut buffer: &mut [u8]) -> Result<(), std::io::Error> {
-        buffer.write_all(b"\n")?;
+    fn emit(&self, buffer: &mut [u8]) -> Result<(), std::io::Error> {
         self.make_writer.make_writer().write_all(&buffer)
     }
 }
@@ -358,6 +357,9 @@ impl<S, W> Layer<S> for BunyanFormattingLayer<W>
                 }
             }
             map_serializer.end()?;
+            // We add a trailing new line.
+            buffer.write_all(b"\n")?;
+
             Ok(buffer)
         };
 
