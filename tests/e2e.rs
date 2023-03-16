@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use time::format_description::well_known::Rfc3339;
 use tracing::{info, span, Level};
-use tracing_bunyan_formatter::{BunyanFormattingLayer, Config, JsonStorageLayer};
+use tracing_bunyan_formatter_with_utc_offset::{BunyanFormattingLayer, Config, JsonStorageLayer};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::Registry;
 

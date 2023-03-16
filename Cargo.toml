@@ -1,5 +1,5 @@
 [package]
-name = "tracing-bunyan-formatter"
+name = "tracing-bunyan-formatter-with-utc-offset"
 version = "0.3.6"
 authors = ["Luca Palmieri <rust@lpalmieri.com>", "Théo Posty <theo@posty.fr>"]
 edition = "2018"
