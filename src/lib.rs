@@ -14,7 +14,7 @@
 //! ## Example
 //!
 //! ```rust
-//! use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+//! use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer, Config};
 //! use tracing::instrument;
 //! use tracing::info;
 //! use tracing_subscriber::Registry;
@@ -34,7 +34,8 @@
 //! }
 //!
 //! fn main() {
-//!     let formatting_layer = BunyanFormattingLayer::new("tracing_demo".into(), std::io::stdout);
+//!     let config = Config { offset: 1 };
+//!     let formatting_layer = BunyanFormattingLayer::new("tracing_demo".into(), std::io::stdout, Some(config));
 //!     let subscriber = Registry::default()
 //!         .with(JsonStorageLayer)
 //!         .with(formatting_layer);

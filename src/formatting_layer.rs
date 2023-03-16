@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::io::Write;
 use time::format_description::well_known::Rfc3339;
+use time::UtcOffset;
 use tracing::{Event, Id, Subscriber};
 use tracing_core::metadata::Level;
 use tracing_core::span::Attributes;
@@ -50,6 +51,7 @@ pub struct BunyanFormattingLayer<W: for<'a> MakeWriter<'a> + 'static> {
     name: String,
     default_fields: HashMap<String, Value>,
     skip_fields: HashSet<String>,
+    config: Config,
 }
 
 /// This error will be returned in [`BunyanFormattingLayer::skip_fields`] if trying to skip a core field.
@@ -68,6 +70,11 @@ impl fmt::Display for SkipFieldError {
 }
 
 impl std::error::Error for SkipFieldError {}
+
+#[derive(Debug)]
+pub struct Config {
+    pub offset: i8,
+}
 
 impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     /// Create a new `BunyanFormattingLayer`.
@@ -91,8 +98,12 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     ///
     /// let formatting_layer = BunyanFormattingLayer::new("tracing_example".into(), || std::io::stdout());
     /// ```
-    pub fn new(name: String, make_writer: W) -> Self {
-        Self::with_default_fields(name, make_writer, HashMap::new())
+    pub fn new(name: String, make_writer: W, config: Option<Config>) -> Self {
+        let config = match config {
+            Some(config) => config,
+            None => Config { offset: 0 },
+        };
+        Self::with_default_fields(name, make_writer, HashMap::new(), Some(config))
     }
 
     /// Add default fields to all formatted records.
@@ -114,7 +125,12 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         name: String,
         make_writer: W,
         default_fields: HashMap<String, Value>,
+        config: Option<Config>,
     ) -> Self {
+        let config = match config {
+            Some(config) => config,
+            None => Config { offset: 0 },
+        };
         Self {
             make_writer,
             name,
@@ -123,6 +139,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
             bunyan_version: 0,
             default_fields,
             skip_fields: HashSet::new(),
+            config,
         }
     }
 
@@ -160,6 +177,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         map_serializer: &mut impl SerializeMap<Error = serde_json::Error>,
         message: &str,
         level: &Level,
+        offset: i8,
     ) -> Result<(), std::io::Error> {
         map_serializer.serialize_entry(BUNYAN_VERSION, &self.bunyan_version)?;
         map_serializer.serialize_entry(NAME, &self.name)?;
@@ -167,7 +185,10 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         map_serializer.serialize_entry(LEVEL, &to_bunyan_level(level))?;
         map_serializer.serialize_entry(HOSTNAME, &self.hostname)?;
         map_serializer.serialize_entry(PID, &self.pid)?;
-        if let Ok(time) = &time::OffsetDateTime::now_utc().format(&Rfc3339) {
+        if let Ok(time) = &time::OffsetDateTime::now_utc()
+            .to_offset(UtcOffset::from_hms(offset, 0, 0).expect("Failed to set UTC offset"))
+            .format(&Rfc3339)
+        {
             map_serializer.serialize_entry(TIME, time)?;
         }
         Ok(())
@@ -199,7 +220,12 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         let mut serializer = serde_json::Serializer::new(&mut buffer);
         let mut map_serializer = serializer.serialize_map(None)?;
         let message = format_span_context(span, ty);
-        self.serialize_bunyan_core_fields(&mut map_serializer, &message, span.metadata().level())?;
+        self.serialize_bunyan_core_fields(
+            &mut map_serializer,
+            &message,
+            span.metadata().level(),
+            self.config.offset,
+        )?;
         // Additional metadata useful for debugging
         // They should be nested under `src` (see https://github.com/trentm/node-bunyan#src )
         // but `tracing` does not support nested values yet
@@ -332,6 +358,7 @@ where
                 &mut map_serializer,
                 &message,
                 event.metadata().level(),
+                self.config.offset,
             )?;
             // Additional metadata useful for debugging
             // They should be nested under `src` (see https://github.com/trentm/node-bunyan#src )

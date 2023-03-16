@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use time::format_description::well_known::Rfc3339;
 use tracing::{info, span, Level};
-use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_bunyan_formatter::{BunyanFormattingLayer, Config, JsonStorageLayer};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::Registry;
 
@@ -28,6 +28,7 @@ fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
         "test".into(),
         || MockWriter::new(&BUFFER),
         default_fields,
+        Some(Config { offset: 1 }),
     )
     .skip_fields(skipped_fields.into_iter())
     .unwrap();
@@ -105,7 +106,7 @@ fn time_is_formatted_according_to_rfc_3339() {
         let parsed = time::OffsetDateTime::parse(time, &Rfc3339);
         assert!(parsed.is_ok());
         let parsed = parsed.unwrap();
-        assert!(parsed.offset().is_utc());
+        assert!(parsed.offset().is_positive());
     }
 }
 
@@ -181,7 +182,7 @@ fn skip_fields() {
 #[test]
 fn skipping_core_fields_is_not_allowed() {
     let skipped_fields = vec!["level"];
-    let result = BunyanFormattingLayer::new("test".into(), || MockWriter::new(&BUFFER))
+    let result = BunyanFormattingLayer::new("test".into(), || MockWriter::new(&BUFFER), None)
         .skip_fields(skipped_fields.into_iter());
 
     match result {
@@ -192,5 +193,18 @@ fn skipping_core_fields_is_not_allowed() {
             );
         }
         Ok(_) => panic!("skipping core fields shouldn't work"),
+    }
+}
+
+#[test]
+fn time_is_formatted_with_utc_offset() {
+    let tracing_output = run_and_get_output(test_action);
+
+    for record in tracing_output {
+        let time = record.get("time").unwrap().as_str().unwrap();
+        let parsed = time::OffsetDateTime::parse(time, &Rfc3339);
+        assert!(parsed.is_ok());
+        let parsed = parsed.unwrap();
+        assert!(parsed.offset().is_positive());
     }
 }
