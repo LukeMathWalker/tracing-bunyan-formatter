@@ -1,12 +1,12 @@
 [package]
 name = "tracing-bunyan-formatter"
 version = "0.3.6"
-authors = ["Luca Palmieri <rust@lpalmieri.com>"]
+authors = ["Luca Palmieri <rust@lpalmieri.com>", "Théo Posty <theo@posty.fr>"]
 edition = "2018"
 
 license = "MIT/Apache-2.0"
 
-repository = "https://github.com/LukeMathWalker/tracing-bunyan-formatter"
+repository = "https://github.com/theo-coder/tracing-bunyan-formatter"
 documentation = "https://docs.rs/tracing-bunyan-formatter/"
 readme = "README.md"
 

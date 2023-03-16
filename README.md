@@ -32,10 +32,11 @@
 
 `tracing-bunyan-formatter` provides two [`Layer`]s implementation to be used on top of
 a [`tracing`] [`Subscriber`]:
+
 - [`JsonStorageLayer`], to attach contextual information to spans for ease of consumption by
   downstream [`Layer`]s, via [`JsonStorage`] and [`Span`]'s [`extensions`](https://docs.rs/tracing-subscriber/0.2.5/tracing_subscriber/registry/struct.ExtensionsMut.html);
 - [`BunyanFormattingLayer`]`, which emits a [bunyan](https://github.com/trentm/node-bunyan)-compatible formatted record upon entering a span,
- existing a span and event creation.
+  existing a span and event creation.
 
 **Important**: each span will inherit all fields and properties attached to its parent - this is
 currently not the behaviour provided by [`tracing_subscriber::fmt::Layer`](https://docs.rs/tracing-subscriber/0.2.5/tracing_subscriber/fmt/struct.Layer.html).
@@ -43,7 +44,7 @@ currently not the behaviour provided by [`tracing_subscriber::fmt::Layer`](https
 ## Example
 
 ```rust
-use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer, Config};
 use tracing::instrument;
 use tracing::info;
 use tracing_subscriber::Registry;
@@ -63,7 +64,9 @@ pub fn a_sub_unit_of_work(sub_parameter: u64) {
 }
 
 fn main() {
-    let formatting_layer = BunyanFormattingLayer::new("tracing_demo".into(), std::io::stdout);
+    // UTC offset
+    let config = Config { offset: 1 };
+    let formatting_layer = BunyanFormattingLayer::new("tracing_demo".into(), std::io::stdout, Some(config));
     let subscriber = Registry::default()
         .with(JsonStorageLayer)
         .with(formatting_layer);
@@ -82,11 +85,11 @@ fn main() {
 <hr/>
 
 If you pipe the output in the [`bunyan`](https://github.com/trentm/node-bunyan) CLI:
+
 <div>
 <img src="https://raw.githubusercontent.com/LukeMathWalker/tracing-bunyan-formatter/master/images/ConsoleBunyanOutput.png" />
 </div>
 <hr/>
-
 
 ## Implementation strategy
 
@@ -114,11 +117,11 @@ Currently the tests only support being run sequentially, so the number of thread
 
 `cargo test -- --test-threads 1`
 
-[`Layer`]: https://docs.rs/tracing-subscriber/0.2.5/tracing_subscriber/layer/trait.Layer.html
-[`JsonStorageLayer`]: https://docs.rs/tracing-bunyan-formatter/0.1.6/tracing_bunyan_formatter/struct.JsonStorageLayer.html
-[`JsonStorage`]: https://docs.rs/tracing-bunyan-formatter/0.1.6/tracing_bunyan_formatter/struct.JsonStorage.html
-[`BunyanFormattingLayer`]: https://docs.rs/tracing-bunyan-formatter/0.1.6/tracing_bunyan_formatter/struct.BunyanFormattingLayer.html
-[`Span`]: https://docs.rs/tracing/0.1.13/tracing/struct.Span.html
-[`Subscriber`]: https://docs.rs/tracing-core/0.1.10/tracing_core/subscriber/trait.Subscriber.html
+[`layer`]: https://docs.rs/tracing-subscriber/0.2.5/tracing_subscriber/layer/trait.Layer.html
+[`jsonstoragelayer`]: https://docs.rs/tracing-bunyan-formatter/0.1.6/tracing_bunyan_formatter/struct.JsonStorageLayer.html
+[`jsonstorage`]: https://docs.rs/tracing-bunyan-formatter/0.1.6/tracing_bunyan_formatter/struct.JsonStorage.html
+[`bunyanformattinglayer`]: https://docs.rs/tracing-bunyan-formatter/0.1.6/tracing_bunyan_formatter/struct.BunyanFormattingLayer.html
+[`span`]: https://docs.rs/tracing/0.1.13/tracing/struct.Span.html
+[`subscriber`]: https://docs.rs/tracing-core/0.1.10/tracing_core/subscriber/trait.Subscriber.html
 [`tracing`]: https://docs.rs/tracing
 [`tracing`]: https://docs.rs/tracing-subscriber
