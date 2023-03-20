@@ -21,6 +21,7 @@ path = "src/lib.rs"
 [features]
 default = []
 arbitrary-precision = ["serde_json/arbitrary_precision"]
+valuable = ["tracing/valuable", "dep:valuable", "dep:valuable-serde"]
 
 [dependencies]
 tracing = { version = "0.1.13", default-features = false, features = ["log", "std"] }
@@ -33,6 +34,8 @@ gethostname = "0.2.1"
 tracing-core = "0.1.10"
 time = { version = "0.3", default-features = false, features = ["formatting"] }
 ahash = "0.8.2"
+valuable = { version = "0.1.0", optional = true }
+valuable-serde = "0.1.0"
 
 [dev-dependencies]
 claims = "0.6.0"
