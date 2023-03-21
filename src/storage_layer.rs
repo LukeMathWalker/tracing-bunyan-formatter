@@ -92,6 +92,15 @@ impl Visit for JsonStorage<'_> {
             }
         };
     }
+
+    #[cfg(all(tracing_unstable, feature = "valuable"))]
+    #[cfg_attr(docsrs, doc(cfg(all(tracing_unstable, feature = "valuable"))))]
+    fn record_value(&mut self, field: &Field, value: valuable::Value<'_>) {
+        let serializable = valuable_serde::Serializable::new(value);
+        let json_value =
+            serde_json::to_value(serializable).unwrap_or("serde_json Serialization error");
+        self.values.insert(field.name(), json_value);
+    }
 }
 
 impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer<S>
