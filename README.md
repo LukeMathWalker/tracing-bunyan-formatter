@@ -162,6 +162,16 @@ See more details in the example in [`examples/valuable.rs`](examples/valuable.rs
 
 Just run `cargo test`.
 
+To run extra tests with the `valuable` feature enabled, run:
+
+```sh
+RUSTFLAGS='--cfg tracing_unstable' \
+cargo test --target-dir target/debug_valuable --features "valuable valuable/derive"
+
+RUSTFLAGS='--cfg tracing_unstable' \
+cargo run --example valuable --target-dir target/debug_valuable --features "valuable valuable/derive"
+```
+
 [`Layer`]: https://docs.rs/tracing-subscriber/0.2.5/tracing_subscriber/layer/trait.Layer.html
 [`JsonStorageLayer`]: https://docs.rs/tracing-bunyan-formatter/0.1.6/tracing_bunyan_formatter/struct.JsonStorageLayer.html
 [`JsonStorage`]: https://docs.rs/tracing-bunyan-formatter/0.1.6/tracing_bunyan_formatter/struct.JsonStorage.html
