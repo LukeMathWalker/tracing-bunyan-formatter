@@ -124,7 +124,8 @@ To use `tracing` and `tracing-bunyan-formatter` with `valuable`, you must set th
 
 1. Enable the feature flag `valuable` for the `tracing` dependency.
 2. Add the `--cfg tracing_unstable` arguments to your rustc
-   flags. This can be done in a few ways:
+   flags (see [`tracing`'s documentation on this][tracing_unstable]).
+   This can be done in a few ways:
     1. Adding the arguments to your binary package's
        `.cargo/config.toml` under `build.rustflags`. See the
        [`cargo` config reference documentation][cargo_build_rustflags]).
@@ -155,12 +156,11 @@ See more details in the example in [`examples/valuable.rs`](examples/valuable.rs
 
 [cargo_build_rustflags]: https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags
 [cargo_env_vars]: https://doc.rust-lang.org/cargo/reference/environment-variables.html
+[tracing_unstable]: https://docs.rs/tracing/0.1.37/tracing/index.html#unstable-features
 
 ## Testing
 
-Currently the tests only support being run sequentially, so the number of threads needs to be restricted:
-
-`cargo test -- --test-threads 1`
+Just run `cargo test`.
 
 [`Layer`]: https://docs.rs/tracing-subscriber/0.2.5/tracing_subscriber/layer/trait.Layer.html
 [`JsonStorageLayer`]: https://docs.rs/tracing-bunyan-formatter/0.1.6/tracing_bunyan_formatter/struct.JsonStorageLayer.html
