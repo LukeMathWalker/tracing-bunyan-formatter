@@ -169,4 +169,4 @@ Just run `cargo test`.
 [`Span`]: https://docs.rs/tracing/0.1.13/tracing/struct.Span.html
 [`Subscriber`]: https://docs.rs/tracing-core/0.1.10/tracing_core/subscriber/trait.Subscriber.html
 [`tracing`]: https://docs.rs/tracing
-[`tracing`]: https://docs.rs/tracing-subscriber
+[`tracing-subscriber`]: https://docs.rs/tracing-subscriber
