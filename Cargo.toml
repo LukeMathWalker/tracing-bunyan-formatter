@@ -42,3 +42,7 @@ claims = "0.6.0"
 lazy_static = "1.4.0"
 tracing = { version = "0.1.13", default-features = false, features = ["log", "std", "attributes"] }
 time = { version = "0.3", default-features = false, features = ["formatting", "parsing", "local-offset"] }
+
+[[example]]
+name = "valuable"
+required-features = ["valuable", "valuable/derive"]

@@ -137,7 +137,7 @@ To use `tracing` and `tracing-bunyan-formatter` with `valuable`, you must set th
        ```
 
     2. Adding the arguments to the `RUSTFLAGS` environment variable when you
-       run `cargo`. See the [cargo environment variable
+       run `cargo`. See the [`cargo` environment variable
        docs][cargo_env_vars]).
 
        Example:
@@ -151,7 +151,7 @@ To use `tracing` and `tracing-bunyan-formatter` with `valuable`, you must set th
    custom types, enable the feature flag `derive` for the `valuable`
    dependency.
 
-See more details in the example in `examples/valuable.rs`.
+See more details in the example in [`examples/valuable.rs`](examples/valuable.rs).
 
 [cargo_build_rustflags]: https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags
 [cargo_env_vars]: https://doc.rust-lang.org/cargo/reference/environment-variables.html
