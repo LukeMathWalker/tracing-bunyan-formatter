@@ -97,9 +97,9 @@ impl Visit for JsonStorage<'_> {
     #[cfg_attr(docsrs, doc(cfg(all(tracing_unstable, feature = "valuable"))))]
     fn record_value(&mut self, field: &Field, value: valuable::Value<'_>) {
         let serializable = valuable_serde::Serializable::new(value);
-        let json_value =
-            serde_json::to_value(serializable).unwrap_or(
-                serde_json::Value::String("serde_json Serialization error".to_string()));
+        let json_value = serde_json::to_value(serializable).unwrap_or(serde_json::Value::String(
+            "serde_json Serialization error".to_string(),
+        ));
         self.values.insert(field.name(), json_value);
     }
 }

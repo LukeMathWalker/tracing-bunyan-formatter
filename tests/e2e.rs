@@ -225,8 +225,11 @@ mod valuable_tests {
         assert_eq!(out.len(), 1);
         let entry = &out[0];
 
-        let s_json = entry.as_object().expect("expect entry is object")
-                          .get("s").expect("expect entry.s is present");
+        let s_json = entry
+            .as_object()
+            .expect("expect entry is object")
+            .get("s")
+            .expect("expect entry.s is present");
 
         assert_eq!(
             json!({
