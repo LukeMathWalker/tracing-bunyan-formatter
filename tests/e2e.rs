@@ -15,7 +15,6 @@ mod mock_writer;
 fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
     let buffer = Arc::new(Mutex::new(vec![]));
     let buffer_clone = buffer.clone();
-    // let buffer_guard = BUFFER.lock().unwrap();
 
     let mut default_fields = HashMap::new();
     default_fields.insert("custom_field".to_string(), json!("custom_value"));
@@ -187,5 +186,57 @@ fn skipping_core_fields_is_not_allowed() {
             );
         }
         Ok(_) => panic!("skipping core fields shouldn't work"),
+    }
+}
+
+#[cfg(feature = "valuable")]
+mod valuable_tests {
+    use super::run_and_get_output;
+    use serde_json::json;
+    use valuable::Valuable;
+
+    #[derive(Valuable)]
+    struct ValuableStruct {
+        a: u64,
+        b: String,
+        c: ValuableEnum,
+    }
+
+    #[derive(Valuable)]
+    #[allow(dead_code)]
+    enum ValuableEnum {
+        A,
+        B(u64),
+        C(String),
+    }
+
+    #[test]
+    fn encode_valuable_composite_types_as_json() {
+        let out = run_and_get_output(|| {
+            let s = ValuableStruct {
+                a: 17,
+                b: "Hello, world!".to_string(),
+                c: ValuableEnum::B(27),
+            };
+
+            tracing::info!(s = s.as_value(), "Test info event");
+        });
+
+        assert_eq!(out.len(), 1);
+        let entry = &out[0];
+
+        let s_json = entry.as_object().expect("expect entry is object")
+                          .get("s").expect("expect entry.s is present");
+
+        assert_eq!(
+            json!({
+                "a": 17,
+                "b": "Hello, world!",
+                "c": {
+                    "B": 27,
+                },
+            }),
+            *s_json
+        );
     }
 }
