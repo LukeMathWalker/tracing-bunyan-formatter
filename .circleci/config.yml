@@ -29,7 +29,7 @@ jobs:
           key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
       - run:
           name: Run all tests
-          command: cargo test -- --test-threads 1
+          command: cargo test
 
   build-and-test-feature-valuable:
     docker:
@@ -62,7 +62,7 @@ jobs:
           key: v1-cargo-cache-{{ arch }}-feature-valuable-{{ checksum "Cargo.lock" }}
       - run:
           name: Run all tests
-          command: cargo test --features "valuable valuable/derive" -- --test-threads 1
+          command: cargo test --features "valuable valuable/derive"
       - run:
           # Try to run examples/valuable explicitly. If the features are incorrect
           # it will be skipped silently.
