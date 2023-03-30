@@ -101,7 +101,7 @@ impl Visit for JsonStorage<'_> {
         match serde_json::to_value(serializable) {
             Ok(json_value) => {
                 self.values.insert(field.name(), json_value);
-            },
+            }
             Err(error) => {
                 tracing::debug!(
                     // The parent span may be the one with this
@@ -110,10 +110,10 @@ impl Visit for JsonStorage<'_> {
                     // to be serialized again, causing an infinite loop.
                     // Avoid this by explicitly setting the parent span to `None`.
                     parent: None,
-
                     ?error,
                     field_name = field.name(),
-                    "serde_json serialization error while recording valuable field.");
+                    "serde_json serialization error while recording valuable field."
+                );
             }
         }
     }
