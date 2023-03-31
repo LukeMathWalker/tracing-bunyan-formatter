@@ -1,9 +1,8 @@
 use crate::mock_writer::MockWriter;
 use claims::assert_some_eq;
-use lazy_static::lazy_static;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use time::format_description::well_known::Rfc3339;
 use tracing::{info, span, Level};
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
@@ -12,21 +11,17 @@ use tracing_subscriber::Registry;
 
 mod mock_writer;
 
-/// Tests have to be run on a single thread because we are re-using the same buffer for
-/// all of them.
-type InMemoryBuffer = Mutex<Vec<u8>>;
-lazy_static! {
-    static ref BUFFER: InMemoryBuffer = Mutex::new(vec![]);
-}
-
 // Run a closure and collect the output emitted by the tracing instrumentation using an in-memory buffer.
 fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
+    let buffer = Arc::new(Mutex::new(vec![]));
+    let buffer_clone = buffer.clone();
+
     let mut default_fields = HashMap::new();
     default_fields.insert("custom_field".to_string(), json!("custom_value"));
     let skipped_fields = vec!["skipped"];
     let formatting_layer = BunyanFormattingLayer::with_default_fields(
         "test".into(),
-        || MockWriter::new(&BUFFER),
+        move || MockWriter::new(buffer_clone.clone()),
         default_fields,
     )
     .skip_fields(skipped_fields.into_iter())
@@ -37,10 +32,8 @@ fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
     tracing::subscriber::with_default(subscriber, action);
 
     // Return the formatted output as a string to make assertions against
-    let mut buffer = BUFFER.lock().unwrap();
-    let output = buffer.to_vec();
-    // Clean the buffer to avoid cross-tests interactions
-    buffer.clear();
+    let buffer_guard = buffer.lock().unwrap();
+    let output = buffer_guard.to_vec();
     String::from_utf8(output).unwrap()
 }
 
@@ -181,7 +174,8 @@ fn skip_fields() {
 #[test]
 fn skipping_core_fields_is_not_allowed() {
     let skipped_fields = vec!["level"];
-    let result = BunyanFormattingLayer::new("test".into(), || MockWriter::new(&BUFFER))
+
+    let result = BunyanFormattingLayer::new("test".into(), || vec![])
         .skip_fields(skipped_fields.into_iter());
 
     match result {
@@ -192,5 +186,60 @@ fn skipping_core_fields_is_not_allowed() {
             );
         }
         Ok(_) => panic!("skipping core fields shouldn't work"),
+    }
+}
+
+#[cfg(feature = "valuable")]
+mod valuable_tests {
+    use super::run_and_get_output;
+    use serde_json::json;
+    use valuable::Valuable;
+
+    #[derive(Valuable)]
+    struct ValuableStruct {
+        a: u64,
+        b: String,
+        c: ValuableEnum,
+    }
+
+    #[derive(Valuable)]
+    #[allow(dead_code)]
+    enum ValuableEnum {
+        A,
+        B(u64),
+        C(String),
+    }
+
+    #[test]
+    fn encode_valuable_composite_types_as_json() {
+        let out = run_and_get_output(|| {
+            let s = ValuableStruct {
+                a: 17,
+                b: "Hello, world!".to_string(),
+                c: ValuableEnum::B(27),
+            };
+
+            tracing::info!(s = s.as_value(), "Test info event");
+        });
+
+        assert_eq!(out.len(), 1);
+        let entry = &out[0];
+
+        let s_json = entry
+            .as_object()
+            .expect("expect entry is object")
+            .get("s")
+            .expect("expect entry.s is present");
+
+        assert_eq!(
+            json!({
+                "a": 17,
+                "b": "Hello, world!",
+                "c": {
+                    "B": 27,
+                },
+            }),
+            *s_json
+        );
     }
 }

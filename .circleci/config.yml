@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  build-and-test:
+  build-and-test-default-features:
     docker:
       - image: cimg/rust:1.65
     environment:
@@ -29,7 +29,45 @@ jobs:
           key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
       - run:
           name: Run all tests
-          command: cargo test -- --test-threads 1
+          command: cargo test
+
+  build-and-test-feature-valuable:
+    docker:
+      - image: cimg/rust:1.65
+    environment:
+      # Fail the build if there are warnings, and set the rustc cfg
+      # flag `tracing_unstable` that `tracing` requires to use the
+      # feature `valuable`
+      RUSTFLAGS: '-D warnings --cfg tracing_unstable'
+    steps:
+      - checkout
+      - run:
+          name: Version information
+          command: rustc --version; cargo --version; rustup --version
+      - run:
+          name: Calculate dependencies
+          command: cargo generate-lockfile
+      - restore_cache:
+          keys:
+            - v1-cargo-cache-{{ arch }}-feature-valuable-{{ checksum "Cargo.lock" }}
+      - run:
+          name: Build all targets
+          command: cargo build --features "valuable valuable/derive"
+      - save_cache:
+          paths:
+            - /usr/local/cargo/registry
+            - target/debug/.fingerprint
+            - target/debug/build
+            - target/debug/deps
+          key: v1-cargo-cache-{{ arch }}-feature-valuable-{{ checksum "Cargo.lock" }}
+      - run:
+          name: Run all tests
+          command: cargo test --features "valuable valuable/derive"
+      - run:
+          # Try to run examples/valuable explicitly. If the features are incorrect
+          # it will be skipped silently.
+          name: Run valuable example
+          command: cargo run --example valuable --features "valuable valuable/derive"
 
   security:
     docker:
@@ -71,7 +109,11 @@ workflows:
   version: 2
   build-test:
     jobs:
-      - build-and-test:
+      - build-and-test-default-features:
+          filters:
+            tags:
+              only: /.*/
+      - build-and-test-feature-valuable:
           filters:
             tags:
               only: /.*/
@@ -83,4 +125,3 @@ workflows:
           filters:
             tags:
               only: /.*/
-

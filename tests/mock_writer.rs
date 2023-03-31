@@ -1,15 +1,15 @@
 use std::io;
-use std::sync::{Mutex, MutexGuard, TryLockError};
+use std::sync::{Arc, Mutex, MutexGuard, TryLockError};
 
-/// Use a vector of bytes behind a Mutex as writer in order to inspect the tracing output
+/// Use a vector of bytes behind a Arc<Mutex> as writer in order to inspect the tracing output
 /// for testing purposes.
 /// Stolen directly from the test suite of tracing-subscriber.
-pub struct MockWriter<'a> {
-    buf: &'a Mutex<Vec<u8>>,
+pub struct MockWriter {
+    buf: Arc<Mutex<Vec<u8>>>,
 }
 
-impl<'a> MockWriter<'a> {
-    pub fn new(buf: &'a Mutex<Vec<u8>>) -> Self {
+impl MockWriter {
+    pub fn new(buf: Arc<Mutex<Vec<u8>>>) -> Self {
         Self { buf }
     }
 
@@ -20,12 +20,12 @@ impl<'a> MockWriter<'a> {
         }
     }
 
-    pub fn buf(&self) -> io::Result<MutexGuard<'a, Vec<u8>>> {
+    pub fn buf(&self) -> io::Result<MutexGuard<'_, Vec<u8>>> {
         self.buf.try_lock().map_err(Self::map_error)
     }
 }
 
-impl<'a> io::Write for MockWriter<'a> {
+impl io::Write for MockWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.buf()?.write(buf)
     }

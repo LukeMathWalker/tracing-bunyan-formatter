@@ -92,6 +92,31 @@ impl Visit for JsonStorage<'_> {
             }
         };
     }
+
+    #[cfg(all(tracing_unstable, feature = "valuable"))]
+    #[cfg_attr(docsrs, doc(cfg(all(tracing_unstable, feature = "valuable"))))]
+    fn record_value(&mut self, field: &Field, value: valuable::Value<'_>) {
+        let serializable = valuable_serde::Serializable::new(value);
+
+        match serde_json::to_value(serializable) {
+            Ok(json_value) => {
+                self.values.insert(field.name(), json_value);
+            }
+            Err(error) => {
+                tracing::debug!(
+                    // The parent span may be the one with this
+                    // unserializable field value. If so logging an event
+                    // under this parent span might trigger it field value
+                    // to be serialized again, causing an infinite loop.
+                    // Avoid this by explicitly setting the parent span to `None`.
+                    parent: None,
+                    ?error,
+                    field_name = field.name(),
+                    "serde_json serialization error while recording valuable field."
+                );
+            }
+        }
+    }
 }
 
 impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer<S>
