@@ -35,7 +35,7 @@ a [`tracing`] [`Subscriber`]:
 - [`JsonStorageLayer`], to attach contextual information to spans for ease of consumption by
   downstream [`Layer`]s, via [`JsonStorage`] and [`Span`]'s [`extensions`](https://docs.rs/tracing-subscriber/0.2.5/tracing_subscriber/registry/struct.ExtensionsMut.html);
 - [`BunyanFormattingLayer`], which emits a [bunyan](https://github.com/trentm/node-bunyan)-compatible formatted record upon entering a span,
- existing a span and event creation.
+ exiting a span and event creation.
 
 **Important**: each span will inherit all fields and properties attached to its parent - this is
 currently not the behaviour provided by [`tracing_subscriber::fmt::Layer`](https://docs.rs/tracing-subscriber/0.2.5/tracing_subscriber/fmt/struct.Layer.html).
