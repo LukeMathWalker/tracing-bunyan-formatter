@@ -209,26 +209,20 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
 
         // Add all default fields
         for (key, value) in self.default_fields.iter() {
+            // Make sure this key isn't reserved. If it is reserved,
+            // silently ignore
             if !BUNYAN_REQUIRED_FIELDS.contains(&key.as_str()) {
                 self.serialize_field(&mut map_serializer, key, value)?;
-            } else {
-                tracing::debug!(
-                    "{} is a reserved field in the bunyan log format. Skipping it.",
-                    key
-                );
             }
         }
 
         let extensions = span.extensions();
         if let Some(visitor) = extensions.get::<JsonStorage>() {
             for (key, value) in visitor.values() {
+                // Make sure this key isn't reserved. If it is reserved,
+                // silently ignore
                 if !BUNYAN_REQUIRED_FIELDS.contains(key) {
                     self.serialize_field(&mut map_serializer, key, value)?;
-                } else {
-                    tracing::debug!(
-                        "{} is a reserved field in the bunyan log format. Skipping it.",
-                        key
-                    );
                 }
             }
         }
@@ -361,13 +355,10 @@ where
                 let extensions = span.extensions();
                 if let Some(visitor) = extensions.get::<JsonStorage>() {
                     for (key, value) in visitor.values() {
+                        // Make sure this key isn't reserved. If it is reserved,
+                        // silently ignore
                         if !BUNYAN_REQUIRED_FIELDS.contains(key) {
                             self.serialize_field(&mut map_serializer, key, value)?;
-                        } else {
-                            tracing::debug!(
-                                "{} is a reserved field in the bunyan log format. Skipping it.",
-                                key
-                            );
                         }
                     }
                 }
