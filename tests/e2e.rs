@@ -1,51 +1,21 @@
-use crate::mock_writer::MockWriter;
 use claims::assert_some_eq;
-use serde_json::{json, Value};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use common::{parse_output, run_with_subscriber_and_get_raw_output};
+use serde_json::Value;
 use time::format_description::well_known::Rfc3339;
 use tracing::{info, span, Level};
-use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::Registry;
+use tracing_bunyan_formatter::BunyanFormattingLayer;
 
-mod mock_writer;
+mod common;
 
-// Run a closure and collect the output emitted by the tracing instrumentation using an in-memory buffer.
-fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
-    let buffer = Arc::new(Mutex::new(vec![]));
-    let buffer_clone = buffer.clone();
-
-    let mut default_fields = HashMap::new();
-    default_fields.insert("custom_field".to_string(), json!("custom_value"));
-    let skipped_fields = vec!["skipped"];
-    let formatting_layer = BunyanFormattingLayer::with_default_fields(
-        "test".into(),
-        move || MockWriter::new(buffer_clone.clone()),
-        default_fields,
-    )
-    .skip_fields(skipped_fields.into_iter())
-    .unwrap();
-    let subscriber = Registry::default()
-        .with(JsonStorageLayer)
-        .with(formatting_layer);
-    tracing::subscriber::with_default(subscriber, action);
-
-    // Return the formatted output as a string to make assertions against
-    let buffer_guard = buffer.lock().unwrap();
-    let output = buffer_guard.to_vec();
-    String::from_utf8(output).unwrap()
+pub fn run_and_get_raw_output<F: Fn()>(action: F) -> String {
+    run_with_subscriber_and_get_raw_output(action, false)
 }
 
 // Run a closure and collect the output emitted by the tracing instrumentation using
 // an in-memory buffer as structured new-line-delimited JSON.
-fn run_and_get_output<F: Fn()>(action: F) -> Vec<Value> {
-    run_and_get_raw_output(action)
-        .lines()
-        .filter(|&l| !l.trim().is_empty())
-        .inspect(|l| println!("{}", l))
-        .map(|line| serde_json::from_str::<Value>(line).unwrap())
-        .collect()
+pub fn run_and_get_output<F: Fn()>(action: F) -> Vec<Value> {
+    let output = run_and_get_raw_output(action);
+    parse_output(output)
 }
 
 // Instrumented code to be run to test the behaviour of the tracing instrumentation.
