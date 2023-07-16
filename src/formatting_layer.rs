@@ -317,13 +317,17 @@ where
     W: for<'a> MakeWriter<'a> + 'static,
 {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
-        // Lookup the current span, unless the event is a "root" event.
-        let current_span = if event.is_root() {
-            None
-        } else {
+        // Lookup the current span.
+        let current_span = if event.is_contextual() {
+            // If the event is _contextual_, ask the context for what it thinks the current span
+            // is.
             // Events do not necessarily happen in the context of a span, hence lookup_current
             // returns an `Option<SpanRef<_>>` instead of a `SpanRef<_>`.
             ctx.lookup_current()
+        } else {
+            // Otherwise, the event is either a _root_ event, or the parent span was explicitly
+            // set.
+            event.parent().and_then(|id| ctx.span(id))
         };
 
         let mut event_visitor = JsonStorage::default();
