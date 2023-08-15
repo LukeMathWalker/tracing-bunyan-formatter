@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::io::Write;
 use time::format_description::well_known::Rfc3339;
-use tracing::{Event, Id, Subscriber};
+use tracing::{Event, Id, Subscriber, Metadata};
 use tracing_core::metadata::Level;
 use tracing_core::span::Attributes;
 use tracing_log::AsLog;
@@ -238,8 +238,8 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
     /// If we write directly to the writer returned by self.make_writer in more than one go
     /// we can end up with broken/incoherent bits and pieces of those records when
     /// running multi-threaded/concurrent programs.
-    fn emit(&self, buffer: &[u8]) -> Result<(), std::io::Error> {
-        self.make_writer.make_writer().write_all(buffer)
+    fn emit(&self, buffer: &[u8], meta: &Metadata<'_>) -> Result<(), std::io::Error> {
+        self.make_writer.make_writer_for(meta).write_all(buffer)
     }
 }
 
@@ -372,21 +372,21 @@ where
 
         let result: std::io::Result<Vec<u8>> = format();
         if let Ok(formatted) = result {
-            let _ = self.emit(&formatted);
+            let _ = self.emit(&formatted, event.metadata());
         }
     }
 
     fn on_new_span(&self, _attrs: &Attributes, id: &Id, ctx: Context<'_, S>) {
         let span = ctx.span(id).expect("Span not found, this is a bug");
         if let Ok(serialized) = self.serialize_span(&span, Type::EnterSpan) {
-            let _ = self.emit(&serialized);
+            let _ = self.emit(&serialized, span.metadata());
         }
     }
 
     fn on_close(&self, id: Id, ctx: Context<'_, S>) {
         let span = ctx.span(&id).expect("Span not found, this is a bug");
         if let Ok(serialized) = self.serialize_span(&span, Type::ExitSpan) {
-            let _ = self.emit(&serialized);
+            let _ = self.emit(&serialized, span.metadata());
         }
     }
 }
