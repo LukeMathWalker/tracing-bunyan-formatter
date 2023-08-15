@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::io::Write;
 use time::format_description::well_known::Rfc3339;
-use tracing::{Event, Id, Subscriber, Metadata};
+use tracing::{Event, Id, Metadata, Subscriber};
 use tracing_core::metadata::Level;
 use tracing_core::span::Attributes;
 use tracing_log::AsLog;
