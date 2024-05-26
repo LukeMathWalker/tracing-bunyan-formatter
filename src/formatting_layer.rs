@@ -42,6 +42,7 @@ fn to_bunyan_level(level: &Level) -> u16 {
 /// This layer is exclusively concerned with formatting information using the [Bunyan format](https://github.com/trentm/node-bunyan).
 /// It relies on the upstream `JsonStorageLayer` to get access to the fields attached to
 /// each span.
+#[derive(Default)]
 pub struct BunyanFormattingLayer<W: for<'a> MakeWriter<'a> + 'static> {
     make_writer: W,
     pid: u32,
@@ -119,7 +120,10 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
             make_writer,
             name,
             pid: std::process::id(),
+            #[cfg(feature = "hostname")]
             hostname: gethostname::gethostname().to_string_lossy().into_owned(),
+            #[cfg(not(feature = "hostname"))]
+            hostname: Default::default(),
             bunyan_version: 0,
             default_fields,
             skip_fields: HashSet::new(),
