@@ -172,6 +172,67 @@ fn skip_fields() {
 }
 
 #[test]
+fn set_hostname() {
+    let tracing_output = run_and_get_output(test_action);
+    let record = tracing_output.first().unwrap();
+    let default_hostname = record.get("hostname").unwrap().to_string();
+
+    let expected_hostname = "banana".to_string();
+
+    let buffer = Arc::new(Mutex::new(vec![]));
+    let buffer_clone = buffer.clone();
+
+    let formatting_layer =
+        BunyanFormattingLayer::new("test".into(), move || MockWriter::new(buffer_clone.clone()))
+            .with_hostname(Some(expected_hostname.clone()));
+    let subscriber = Registry::default()
+        .with(JsonStorageLayer)
+        .with(formatting_layer);
+    tracing::subscriber::with_default(subscriber, test_action);
+
+    let buffer_guard = buffer.lock().unwrap();
+    let output = buffer_guard.to_vec();
+    let output = String::from_utf8(output)
+        .unwrap()
+        .lines()
+        .next()
+        .map(ToString::to_string)
+        .unwrap();
+    let output = output.parse::<Value>().unwrap();
+    let new_hostname = output["hostname"].as_str().unwrap();
+
+    assert_ne!(default_hostname, new_hostname);
+    assert_eq!(new_hostname, expected_hostname);
+}
+
+#[test]
+fn skip_hostname() {
+    let buffer = Arc::new(Mutex::new(vec![]));
+    let buffer_clone = buffer.clone();
+
+    let formatting_layer =
+        BunyanFormattingLayer::new("test".into(), move || MockWriter::new(buffer_clone.clone()))
+            .with_hostname(None);
+
+    let subscriber = Registry::default()
+        .with(JsonStorageLayer)
+        .with(formatting_layer);
+    tracing::subscriber::with_default(subscriber, test_action);
+
+    let buffer_guard = buffer.lock().unwrap();
+    let output = buffer_guard.to_vec();
+    let output = String::from_utf8(output)
+        .unwrap()
+        .lines()
+        .next()
+        .map(ToString::to_string)
+        .unwrap();
+    let output = output.parse::<Value>().unwrap();
+
+    assert!(output.get("hostname").is_none());
+}
+
+#[test]
 fn skipping_core_fields_is_not_allowed() {
     let skipped_fields = vec!["level"];
 

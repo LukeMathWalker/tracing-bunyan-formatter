@@ -45,7 +45,7 @@ fn to_bunyan_level(level: &Level) -> u16 {
 pub struct BunyanFormattingLayer<W: for<'a> MakeWriter<'a> + 'static> {
     make_writer: W,
     pid: u32,
-    hostname: String,
+    hostname: Option<String>,
     bunyan_version: u8,
     name: String,
     default_fields: HashMap<String, Value>,
@@ -119,11 +119,16 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
             make_writer,
             name,
             pid: std::process::id(),
-            hostname: gethostname::gethostname().to_string_lossy().into_owned(),
+            hostname: Some(gethostname::gethostname().to_string_lossy().into_owned()),
             bunyan_version: 0,
             default_fields,
             skip_fields: HashSet::new(),
         }
+    }
+
+    pub fn with_hostname(mut self, hostname: Option<String>) -> Self {
+        self.hostname = hostname;
+        self
     }
 
     /// Add fields to skip when formatting with this layer.
@@ -165,7 +170,9 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         map_serializer.serialize_entry(NAME, &self.name)?;
         map_serializer.serialize_entry(MESSAGE, &message)?;
         map_serializer.serialize_entry(LEVEL, &to_bunyan_level(level))?;
-        map_serializer.serialize_entry(HOSTNAME, &self.hostname)?;
+        if let Some(hostname) = &self.hostname {
+            map_serializer.serialize_entry(HOSTNAME, hostname)?;
+        }
         map_serializer.serialize_entry(PID, &self.pid)?;
         if let Ok(time) = &time::OffsetDateTime::now_utc().format(&Rfc3339) {
             map_serializer.serialize_entry(TIME, time)?;
