@@ -213,20 +213,30 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
 
         // Add all default fields
         for (key, value) in self.default_fields.iter() {
-            // Make sure this key isn't reserved. If it is reserved,
-            // silently ignore
+            // Make sure this key isn't reserved.
             if !BUNYAN_REQUIRED_FIELDS.contains(&key.as_str()) {
                 self.serialize_field(&mut map_serializer, key, value)?;
+            } else {
+                tracing::debug!(
+                    parent: None,
+                    "{} is a reserved field in the bunyan log format. Skipping it.",
+                    key
+                );
             }
         }
 
         let extensions = span.extensions();
         if let Some(visitor) = extensions.get::<JsonStorage>() {
             for (key, value) in visitor.values() {
-                // Make sure this key isn't reserved. If it is reserved,
-                // silently ignore
+                // Make sure this key isn't reserved.
                 if !BUNYAN_REQUIRED_FIELDS.contains(key) {
                     self.serialize_field(&mut map_serializer, key, value)?;
+                } else {
+                    tracing::debug!(
+                        parent: None,
+                        "{} is a reserved field in the bunyan log format. Skipping it.",
+                        key
+                    );
                 }
             }
         }
@@ -311,9 +321,18 @@ where
     W: for<'a> MakeWriter<'a> + 'static,
 {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
-        // Events do not necessarily happen in the context of a span, hence lookup_current
-        // returns an `Option<SpanRef<_>>` instead of a `SpanRef<_>`.
-        let current_span = ctx.lookup_current();
+        // Lookup the current span.
+        let current_span = if event.is_contextual() {
+            // If the event is _contextual_, ask the context for what it thinks the current span
+            // is.
+            // Events do not necessarily happen in the context of a span, hence lookup_current
+            // returns an `Option<SpanRef<_>>` instead of a `SpanRef<_>`.
+            ctx.lookup_current()
+        } else {
+            // Otherwise, the event is either a _root_ event, or the parent span was explicitly
+            // set.
+            event.parent().and_then(|id| ctx.span(id))
+        };
 
         let mut event_visitor = JsonStorage::default();
         event.record(&mut event_visitor);
@@ -363,6 +382,12 @@ where
                         // silently ignore
                         if !BUNYAN_REQUIRED_FIELDS.contains(key) {
                             self.serialize_field(&mut map_serializer, key, value)?;
+                        } else {
+                            tracing::debug!(
+                                parent: None,
+                                "{} is a reserved field in the bunyan log format. Skipping it.",
+                                key
+                            );
                         }
                     }
                 }
