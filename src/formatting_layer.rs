@@ -29,13 +29,25 @@ const BUNYAN_REQUIRED_FIELDS: [&str; 7] =
     [BUNYAN_VERSION, LEVEL, NAME, HOSTNAME, PID, TIME, MESSAGE];
 
 /// Convert from log levels to Bunyan's levels.
-fn to_bunyan_level(level: &Level) -> u16 {
+#[cfg(not(feature = "string-level"))]
+fn serialize_level(level: &Level) -> u16 {
     match level.as_log() {
         log::Level::Error => 50,
         log::Level::Warn => 40,
         log::Level::Info => 30,
         log::Level::Debug => 20,
         log::Level::Trace => 10,
+    }
+}
+
+#[cfg(feature = "string-level")]
+fn serialize_level(level: &Level) -> String {
+    match level.as_log() {
+        log::Level::Error => "error".to_string(),
+        log::Level::Warn => "warn".to_string(),
+        log::Level::Info => "info".to_string(),
+        log::Level::Debug => "debug".to_string(),
+        log::Level::Trace => "trace".to_string(),
     }
 }
 
@@ -168,7 +180,7 @@ impl<W: for<'a> MakeWriter<'a> + 'static> BunyanFormattingLayer<W> {
         map_serializer.serialize_entry(BUNYAN_VERSION, &self.bunyan_version)?;
         map_serializer.serialize_entry(NAME, &self.name)?;
         map_serializer.serialize_entry(MESSAGE, &message)?;
-        map_serializer.serialize_entry(LEVEL, &to_bunyan_level(level))?;
+        map_serializer.serialize_entry(LEVEL, &serialize_level(level))?;
         map_serializer.serialize_entry(HOSTNAME, &self.hostname)?;
         map_serializer.serialize_entry(PID, &self.pid)?;
         if let Ok(time) = &time::OffsetDateTime::now_utc().format(&Rfc3339) {

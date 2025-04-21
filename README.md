@@ -158,6 +158,30 @@ See more details in the example in [`examples/valuable.rs`](examples/valuable.rs
 [cargo_env_vars]: https://doc.rust-lang.org/cargo/reference/environment-variables.html
 [tracing_unstable]: https://docs.rs/tracing/0.1.37/tracing/index.html#unstable-features
 
+### `string-level`
+
+The `string-level` feature enables string-based log levels (e.g. "error", "warn", "info", "debug", "trace") instead of numeric levels (50, 40, 30, 20, 10).
+
+Example output with `string-level` enabled:
+```json
+{
+  "name": "tracing_demo",
+  "level": "info",
+  "msg": "Orphan event without a parent span",
+  ...
+}
+```
+
+Example output with `string-level` disabled:
+```json
+{
+  "name": "tracing_demo",
+  "level": 30,
+  "msg": "Orphan event without a parent span",
+  ...
+}
+```
+
 ## Testing
 
 Just run `cargo test`.
