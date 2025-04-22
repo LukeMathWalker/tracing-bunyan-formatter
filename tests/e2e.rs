@@ -189,6 +189,33 @@ fn skipping_core_fields_is_not_allowed() {
     }
 }
 
+#[cfg(feature = "string-level")]
+#[test]
+fn level_is_formatted_as_string() {
+    let tracing_output = run_and_get_output(test_action);
+
+    for record in tracing_output {
+        let level = record.get("level").unwrap();
+        assert!(level.is_string());
+        assert!(matches!(
+            level.as_str().unwrap(),
+            "error" | "warn" | "info" | "debug" | "trace"
+        ));
+    }
+}
+
+#[cfg(not(feature = "string-level"))]
+#[test]
+fn level_is_formatted_as_number() {
+    let tracing_output = run_and_get_output(test_action);
+
+    for record in tracing_output {
+        let level = record.get("level").unwrap();
+        assert!(level.is_number());
+        assert!(matches!(level.as_u64().unwrap(), 50 | 40 | 30 | 20 | 10));
+    }
+}
+
 #[cfg(feature = "valuable")]
 mod valuable_tests {
     use super::run_and_get_output;
