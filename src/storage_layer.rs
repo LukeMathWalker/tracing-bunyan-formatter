@@ -1,3 +1,4 @@
+use crate::storage_filter::JsonStorageFilter;
 use std::collections::HashMap;
 use std::fmt;
 use std::time::Instant;
@@ -13,7 +14,9 @@ use tracing_subscriber::Layer;
 /// for downstream layers concerned with emitting a formatted representation of
 /// spans or events.
 #[derive(Clone, Debug)]
-pub struct JsonStorageLayer;
+pub struct JsonStorageLayer {
+    filters: Vec<JsonStorageFilter>,
+}
 
 /// `JsonStorage` will collect information about a span when it's created (`new_span` handler)
 /// or when new records are attached to it (`on_record` handler) and store it in its `extensions`
@@ -34,6 +37,11 @@ impl<'a> JsonStorage<'a> {
     /// Get the set of stored values, as a set of keys and JSON values.
     pub fn values(&self) -> &HashMap<&'a str, serde_json::Value> {
         &self.values
+    }
+
+    /// Create a new `JsonStorage` from values
+    pub fn from_values(values: HashMap<&'a str, serde_json::Value>) -> Self {
+        Self { values }
     }
 }
 
@@ -119,6 +127,27 @@ impl Visit for JsonStorage<'_> {
     }
 }
 
+impl JsonStorageLayer {
+    /// Create a new `JsonStorageLayer`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Create a new `JsonStorageLayer` with the specified filters
+    pub fn with_filters(filters: Vec<JsonStorageFilter>) -> Self {
+        Self { filters }
+    }
+}
+
+/// Get a new layer, without filter.
+impl Default for JsonStorageLayer {
+    fn default() -> Self {
+        Self {
+            filters: Vec::new(),
+        }
+    }
+}
+
 impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer<S>
     for JsonStorageLayer
 {
@@ -136,7 +165,24 @@ impl<S: Subscriber + for<'a> tracing_subscriber::registry::LookupSpan<'a>> Layer
             let mut extensions = parent_span.extensions_mut();
             extensions
                 .get_mut::<JsonStorage>()
-                .map(|v| v.to_owned())
+                .map(|v| {
+                    // Only use relevant filters for the given parent span.
+                    let filters: Vec<&JsonStorageFilter> = self
+                        .filters
+                        .iter()
+                        .filter(|f| f.filter_span(&parent_span))
+                        .collect();
+
+                    // Filter the fields and clone the ones that have been retained.
+                    let values: HashMap<&'_ str, serde_json::Value> = v
+                        .values()
+                        .iter()
+                        .filter(|(key, _value)| filters.iter().all(|f| f.filter_field(key)))
+                        .map(|(key, value)| (*key, value.to_owned()))
+                        .collect();
+
+                    JsonStorage::from_values(values)
+                })
                 .unwrap_or_default()
         } else {
             JsonStorage::default()
