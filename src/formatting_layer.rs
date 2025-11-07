@@ -9,7 +9,6 @@ use time::format_description::well_known::Rfc3339;
 use tracing::{Event, Id, Metadata, Subscriber};
 use tracing_core::metadata::Level;
 use tracing_core::span::Attributes;
-use tracing_log::AsLog;
 use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::layer::Context;
 use tracing_subscriber::registry::SpanRef;
@@ -30,12 +29,12 @@ const BUNYAN_REQUIRED_FIELDS: [&str; 7] =
 
 /// Convert from log levels to Bunyan's levels.
 fn to_bunyan_level(level: &Level) -> u16 {
-    match level.as_log() {
-        log::Level::Error => 50,
-        log::Level::Warn => 40,
-        log::Level::Info => 30,
-        log::Level::Debug => 20,
-        log::Level::Trace => 10,
+    match *level {
+        Level::ERROR => 50,
+        Level::WARN => 40,
+        Level::INFO => 30,
+        Level::DEBUG => 20,
+        Level::TRACE => 10,
     }
 }
 
