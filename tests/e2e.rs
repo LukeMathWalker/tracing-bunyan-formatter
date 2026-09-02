@@ -1,4 +1,5 @@
 use crate::mock_writer::MockWriter;
+use assertables::{assert_none, assert_some};
 use claims::assert_some_eq;
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -78,7 +79,7 @@ fn each_line_has_the_mandatory_bunyan_fields() {
     let tracing_output = run_and_get_output(test_action);
 
     for record in tracing_output {
-        assert!(record.get("name").is_some());
+        assert_some!(record.get("name"));
         assert!(record.get("level").is_some());
         assert!(record.get("time").is_some());
         assert!(record.get("msg").is_some());
@@ -143,7 +144,7 @@ fn parent_properties_are_propagated() {
     let tracing_output = run_and_get_output(action);
 
     for record in tracing_output {
-        assert!(record.get("parent_property").is_some());
+        assert_some!(record.get("parent_property"));
     }
 }
 
@@ -157,7 +158,7 @@ fn elapsed_milliseconds_are_present_on_exit_span() {
             .and_then(Value::as_str)
             .map_or(false, |msg| msg.ends_with("END]"))
         {
-            assert!(record.get("elapsed_milliseconds").is_some());
+            assert_some!(record.get("elapsed_milliseconds"));
         }
     }
 }
@@ -167,7 +168,7 @@ fn skip_fields() {
     let tracing_output = run_and_get_output(test_action);
 
     for record in tracing_output {
-        assert!(record.get("skipped").is_none());
+        assert_none!(record.get("skipped"));
     }
 }
 
