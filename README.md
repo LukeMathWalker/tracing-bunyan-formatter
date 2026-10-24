@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+> **`tracing-bunyan-formatter` has moved to [LukeMathWalker/officina](https://github.com/LukeMathWalker/officina/tree/main/tracing-bunyan-formatter).**
+> This repository is archived: development, issues and releases continue there. The `tracing-bunyan-formatter` crate on crates.io is unaffected.
+
 <h1 align="center">tracing-bunyan-formatter</h1>
 <div align="center">
  <strong>
